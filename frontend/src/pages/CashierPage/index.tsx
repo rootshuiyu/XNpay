@@ -34,6 +34,7 @@ export default function CashierPage() {
   const [copied, setCopied] = useState<string>('');
   const [countdown, setCountdown] = useState(0);
   const [qrLoading, setQrLoading] = useState(true);
+  const [activeMethod, setActiveMethod] = useState<'alipay' | 'wechat'>('alipay');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchOrder = useCallback(async () => {
@@ -42,12 +43,8 @@ export default function CashierPage() {
       if (res.data.code === 0) {
         const data = res.data.data;
         setOrder(data);
-        if (data.status === 'paid') {
-          setPaid(true);
-        }
-        if (data.qr_code) {
-          setQrLoading(false);
-        }
+        if (data.status === 'paid') setPaid(true);
+        if (data.qr_code) setQrLoading(false);
       } else {
         setError(res.data.message || '订单不存在');
       }
@@ -72,9 +69,7 @@ export default function CashierPage() {
             setPaid(true);
             if (pollRef.current) clearInterval(pollRef.current);
           }
-          if (data.qr_code) {
-            setQrLoading(false);
-          }
+          if (data.qr_code) setQrLoading(false);
         }
       } catch { /* ignore */ }
     }, 3000);
@@ -102,11 +97,8 @@ export default function CashierPage() {
     setConfirming(true);
     try {
       const res = await axios.post(`/pay/cashier/${orderNo}/confirm`);
-      if (res.data.code === 0) {
-        setPaid(true);
-      } else {
-        alert(res.data.message || '确认失败');
-      }
+      if (res.data.code === 0) setPaid(true);
+      else alert(res.data.message || '确认失败');
     } catch {
       alert('网络错误');
     } finally {
@@ -127,15 +119,15 @@ export default function CashierPage() {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const hasQRCode = order?.qr_code && order.qr_code !== '';
+  const hasQRCode = !!order?.qr_code;
   const isBotProcessing = order?.bot_status === 'queued' || order?.bot_status === 'processing';
 
   if (loading) {
     return (
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <div style={styles.spinner} />
-          <p style={{ color: '#999', marginTop: 16 }}>加载中...</p>
+      <div style={S.page}>
+        <div style={S.loadingBox}>
+          <div style={S.spinner} />
+          <p style={{ color: '#999', marginTop: 16, fontSize: 14 }}>加载中...</p>
         </div>
       </div>
     );
@@ -143,10 +135,10 @@ export default function CashierPage() {
 
   if (error) {
     return (
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>&#10060;</div>
-          <h2 style={{ color: '#ff4d4f' }}>{error}</h2>
+      <div style={S.page}>
+        <div style={S.statusBox}>
+          <div style={{ fontSize: 56 }}>✖</div>
+          <h2 style={{ color: '#ff4d4f', marginTop: 12 }}>{error}</h2>
         </div>
       </div>
     );
@@ -154,11 +146,11 @@ export default function CashierPage() {
 
   if (order?.status === 'expired') {
     return (
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>&#9200;</div>
-          <h2 style={{ color: '#faad14' }}>订单已过期</h2>
-          <p style={{ color: '#999', marginTop: 8 }}>请重新下单</p>
+      <div style={S.page}>
+        <div style={S.statusBox}>
+          <div style={{ fontSize: 56 }}>⏰</div>
+          <h2 style={{ color: '#faad14', marginTop: 12 }}>订单已过期</h2>
+          <p style={{ color: '#999', fontSize: 14 }}>请重新下单</p>
         </div>
       </div>
     );
@@ -166,13 +158,15 @@ export default function CashierPage() {
 
   if (paid) {
     return (
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <div style={{ fontSize: 56, marginBottom: 16, color: '#52c41a' }}>&#10004;</div>
-          <h2 style={{ color: '#333', marginBottom: 8 }}>支付成功</h2>
-          <p style={{ color: '#666', fontSize: 24, fontWeight: 700 }}>¥{order?.amount?.toFixed(2)}</p>
+      <div style={S.page}>
+        <div style={S.statusBox}>
+          <div style={{ fontSize: 64, color: '#07c160' }}>✓</div>
+          <h2 style={{ color: '#111', marginTop: 12, fontSize: 22 }}>支付成功</h2>
+          <p style={{ fontSize: 28, fontWeight: 700, color: '#333', marginTop: 8 }}>
+            ¥{order?.amount?.toFixed(2)}
+          </p>
           {order?.return_url && (
-            <p style={{ color: '#999', marginTop: 16, fontSize: 14 }}>3秒后自动跳转...</p>
+            <p style={{ color: '#999', fontSize: 13, marginTop: 16 }}>3秒后自动跳转...</p>
           )}
         </div>
       </div>
@@ -182,153 +176,161 @@ export default function CashierPage() {
   const acc = order?.account_info;
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <div style={styles.header}>
-          <img src="/rhino-logo.png" alt="logo" style={{ width: 36, height: 36, marginRight: 10 }} />
-          <span style={{ fontSize: 20, fontWeight: 700, color: '#6c5ce7' }}>犀牛支付</span>
+    <div style={S.page}>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+        @keyframes blink { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
+        * { box-sizing: border-box; }
+      `}</style>
+
+      {/* Top bar */}
+      <div style={S.topBar}>
+        <img src="/rhino-logo.png" alt="logo" style={{ width: 28, height: 28 }} />
+        <span style={S.topBarTitle}>收银台中心</span>
+        <div />
+      </div>
+
+      <div style={S.wrap}>
+        {/* Amount card */}
+        <div style={S.amountCard}>
+          <div style={S.amountLabel}>{order?.subject || '订单支付'}</div>
+          <div style={S.amountNum}>
+            <span style={S.amountSymbol}>¥</span>
+            {order?.amount?.toFixed(2)}
+          </div>
+          <div style={S.orderMeta}>
+            <span>订单号: {order?.order_no}</span>
+            {countdown > 0 && (
+              <span style={S.timer}>⏱ {formatCountdown(countdown)}</span>
+            )}
+          </div>
         </div>
 
-        <div style={styles.amountSection}>
-          <p style={{ color: '#999', fontSize: 14, margin: 0 }}>{order?.subject || '订单支付'}</p>
-          <p style={{ fontSize: 36, fontWeight: 700, color: '#333', margin: '8px 0' }}>
-            ¥{order?.amount?.toFixed(2)}
-          </p>
-          <p style={{ color: '#bbb', fontSize: 12 }}>订单号: {order?.order_no}</p>
-          {countdown > 0 && (
-            <div style={styles.countdownBadge}>
-              <span style={{ marginRight: 4 }}>&#9202;</span>
-              剩余 {formatCountdown(countdown)}
-            </div>
-          )}
+        {/* Payment method tabs */}
+        <div style={S.methodSection}>
+          <div style={S.methodLabel}>选择支付方式</div>
+          <div style={S.methodRow}>
+            <button
+              style={{ ...S.methodBtn, ...(activeMethod === 'alipay' ? S.methodBtnActive : {}) }}
+              onClick={() => setActiveMethod('alipay')}
+            >
+              <AlipayIcon active={activeMethod === 'alipay'} />
+              <div>
+                <div style={S.methodName}>支付宝支付</div>
+                <div style={S.methodDesc}>推荐使用，支付更快捷</div>
+              </div>
+              {activeMethod === 'alipay' && <span style={S.checkMark}>✓</span>}
+            </button>
+            <button
+              style={{ ...S.methodBtn, ...(activeMethod === 'wechat' ? S.methodBtnActiveGreen : {}) }}
+              onClick={() => setActiveMethod('wechat')}
+            >
+              <WechatIcon active={activeMethod === 'wechat'} />
+              <div>
+                <div style={S.methodName}>微信支付</div>
+                <div style={S.methodDesc}>支持微信扫码支付</div>
+              </div>
+              {activeMethod === 'wechat' && <span style={{ ...S.checkMark, background: '#07c160' }}>✓</span>}
+            </button>
+          </div>
         </div>
 
-        {/* QR Code Mode */}
+        {/* QR Code area */}
         {hasQRCode && (
-          <div style={styles.qrSection}>
-            <div style={styles.sectionTitle}>
-              <span style={{ color: '#1890ff', marginRight: 6 }}>&#128179;</span>
-              <span>扫码支付</span>
-            </div>
-
-            <div style={styles.qrContainer}>
+          <div style={S.qrCard}>
+            <div style={S.qrTitle}>请扫描二维码</div>
+            <div style={S.qrFrame}>
+              {qrLoading && (
+                <div style={S.qrOverlay}><div style={S.spinner} /></div>
+              )}
               <img
-                src={order.qr_code}
+                src={order!.qr_code}
                 alt="支付二维码"
-                style={styles.qrImage}
+                style={S.qrImg}
                 onLoad={() => setQrLoading(false)}
                 onError={() => setQrLoading(false)}
               />
-              {qrLoading && (
-                <div style={styles.qrOverlay}>
-                  <div style={styles.spinner} />
-                </div>
-              )}
+              <div style={S.qrCorner} data-pos="tl" />
+              <div style={S.qrCorner} data-pos="tr" />
+              <div style={S.qrCorner} data-pos="bl" />
+              <div style={S.qrCorner} data-pos="br" />
             </div>
-
-            <div style={styles.qrHint}>
-              <div style={styles.qrHintIcon}>
-                <span style={{ fontSize: 24 }}>&#128241;</span>
-              </div>
-              <div>
-                <p style={{ fontWeight: 600, color: '#333', margin: '0 0 4px 0', fontSize: 15 }}>
-                  请使用支付宝扫描二维码
-                </p>
-                <p style={{ color: '#999', margin: 0, fontSize: 13 }}>
-                  扫码完成支付后，页面将自动跳转
-                </p>
-              </div>
+            <div style={S.qrHint}>
+              <span style={{ animation: 'blink 2s ease-in-out infinite', display:'inline-block' }}>📱</span>
+              &nbsp;
+              {activeMethod === 'alipay' ? '请使用支付宝扫码' : '请使用微信扫码'}
             </div>
-
-            <div style={styles.statusBar}>
-              <div style={styles.statusDot} />
-              <span style={{ color: '#999', fontSize: 13 }}>正在等待支付...</span>
+            <div style={S.waitingRow}>
+              <span style={S.waitingDot} />
+              正在等待支付...
             </div>
           </div>
         )}
 
-        {/* Bot Processing State */}
+        {/* Bot processing */}
         {isBotProcessing && !hasQRCode && (
-          <div style={styles.processingSection}>
-            <div style={styles.processingAnim}>
-              <div style={styles.spinner} />
-            </div>
-            <p style={{ color: '#666', fontSize: 16, fontWeight: 600, margin: '16px 0 4px' }}>
-              正在获取支付码...
-            </p>
-            <p style={{ color: '#999', fontSize: 13, margin: 0 }}>
-              系统正在为您准备支付通道，请稍候
-            </p>
+          <div style={S.stateBox}>
+            <div style={S.spinner} />
+            <p style={{ color: '#333', fontSize: 16, fontWeight: 600, marginTop: 20 }}>正在获取支付码...</p>
+            <p style={{ color: '#999', fontSize: 13, marginTop: 6 }}>系统正在为您准备支付通道，请稍候</p>
           </div>
         )}
 
-        {/* Bot Failed */}
+        {/* Bot failed */}
         {order?.bot_status === 'failed' && !hasQRCode && (
-          <div style={styles.failedSection}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>&#9888;&#65039;</div>
-            <p style={{ color: '#ff4d4f', fontSize: 16, fontWeight: 600 }}>获取支付码失败</p>
+          <div style={S.stateBox}>
+            <div style={{ fontSize: 48 }}>⚠️</div>
+            <p style={{ color: '#ff4d4f', fontSize: 16, fontWeight: 600, marginTop: 12 }}>获取支付码失败</p>
             <p style={{ color: '#999', fontSize: 13 }}>请联系客服或重新下单</p>
           </div>
         )}
 
-        {/* Manual Mode (no bot) */}
+        {/* Manual mode */}
         {!hasQRCode && !isBotProcessing && order?.bot_status !== 'failed' && acc && (
-          <div style={styles.accountSection}>
-            <div style={styles.sectionTitle}>
+          <div style={S.manualCard}>
+            <div style={S.manualTitle}>
               {order?.game_icon && (
-                <img src={order.game_icon} alt="" style={{ width: 24, height: 24, borderRadius: 4, marginRight: 8 }} />
+                <img src={order.game_icon} alt="" style={{ width: 22, height: 22, borderRadius: 4, marginRight: 8 }} />
               )}
-              <span>{order?.channel || acc.game_name} - 充值账号信息</span>
+              {acc.game_name} - 充值账号信息
             </div>
+            {[
+              { label: '游戏', value: acc.game_name, key: '' },
+              { label: '账号', value: acc.account_name, key: 'account' },
+              { label: '密码', value: acc.password, key: 'password' },
+              { label: '备注', value: acc.login_info, key: '' },
+            ].filter(r => r.value).map((row, i) => (
+              <div key={i} style={S.infoRow}>
+                <span style={S.infoLabel}>{row.label}</span>
+                <span style={S.infoVal}>{row.value}</span>
+                {row.key && (
+                  <button style={S.copyBtn} onClick={() => copyText(row.value, row.key)}>
+                    {copied === row.key ? '✓ 已复制' : '复制'}
+                  </button>
+                )}
+              </div>
+            ))}
 
-            <div style={styles.infoRow}>
-              <span style={styles.infoLabel}>游戏</span>
-              <span style={styles.infoValue}>{acc.game_name}</span>
-            </div>
-            <div style={styles.infoRow}>
-              <span style={styles.infoLabel}>账号</span>
-              <span style={styles.infoValue}>{acc.account_name}</span>
-              <button style={styles.copyBtn} onClick={() => copyText(acc.account_name, 'account')}>
-                {copied === 'account' ? '已复制' : '复制'}
-              </button>
-            </div>
-            {acc.password && (
-              <div style={styles.infoRow}>
-                <span style={styles.infoLabel}>密码</span>
-                <span style={styles.infoValue}>{acc.password}</span>
-                <button style={styles.copyBtn} onClick={() => copyText(acc.password, 'password')}>
-                  {copied === 'password' ? '已复制' : '复制'}
-                </button>
+            <div style={S.amountHint}>
+              <div style={{ color: '#ff4d4f', fontWeight: 700, fontSize: 18 }}>
+                请充值: ¥{order?.amount?.toFixed(2)}
               </div>
-            )}
-            {acc.login_info && (
-              <div style={styles.infoRow}>
-                <span style={styles.infoLabel}>备注</span>
-                <span style={styles.infoValue}>{acc.login_info}</span>
-              </div>
-            )}
-
-            <div style={styles.amountHint}>
-              <div style={{ fontWeight: 600, color: '#ff4d4f', fontSize: 16, marginBottom: 4 }}>
-                请充值金额: ¥{order?.amount?.toFixed(2)}
-              </div>
-              <div style={{ color: '#999', fontSize: 13 }}>
-                请登录上述游戏账号，在游戏内充值上述精确金额
+              <div style={{ color: '#888', fontSize: 13, marginTop: 4 }}>
+                请登录上述游戏账号，在游戏内充值精确金额
               </div>
             </div>
 
-            <div style={styles.steps}>
-              <div style={styles.step}><span style={styles.stepNum}>1</span>复制账号密码，登录游戏</div>
-              <div style={styles.step}><span style={styles.stepNum}>2</span>在游戏内进行充值</div>
-              <div style={styles.step}><span style={styles.stepNum}>3</span>充值金额 ¥{order?.amount?.toFixed(2)}</div>
-              <div style={styles.step}><span style={styles.stepNum}>4</span>完成后点击下方确认按钮</div>
+            <div style={S.steps}>
+              {['复制账号密码，登录游戏', '在游戏内进行充值', `充值金额 ¥${order?.amount?.toFixed(2)}`, '完成后点击下方确认'].map((s, i) => (
+                <div key={i} style={S.step}>
+                  <span style={S.stepNum}>{i + 1}</span>
+                  <span style={{ color: '#555', fontSize: 13 }}>{s}</span>
+                </div>
+              ))}
             </div>
 
-            <button
-              style={{ ...styles.confirmBtn, opacity: confirming ? 0.6 : 1 }}
-              onClick={handleConfirm}
-              disabled={confirming}
-            >
+            <button style={{ ...S.confirmBtn, opacity: confirming ? 0.6 : 1 }} onClick={handleConfirm} disabled={confirming}>
               {confirming ? '确认中...' : '我已完成充值'}
             </button>
           </div>
@@ -336,240 +338,387 @@ export default function CashierPage() {
 
         {/* No account, no bot */}
         {!hasQRCode && !isBotProcessing && order?.bot_status !== 'failed' && !acc && (
-          <div style={{ padding: 20, color: '#999', textAlign: 'center' }}>
-            暂未分配游戏账号，请稍后刷新页面
-            <br />
-            <button style={{ ...styles.confirmBtn, marginTop: 16, background: '#8c8c8c' }} onClick={() => window.location.reload()}>
+          <div style={S.stateBox}>
+            <div style={{ fontSize: 40 }}>⏳</div>
+            <p style={{ color: '#666', fontSize: 15, marginTop: 16 }}>暂未分配支付通道</p>
+            <p style={{ color: '#999', fontSize: 13 }}>请稍后刷新页面</p>
+            <button style={{ ...S.confirmBtn, marginTop: 20, maxWidth: 180, background: '#1677ff' }} onClick={() => window.location.reload()}>
               刷新
             </button>
           </div>
         )}
 
-        <div style={styles.footer}>
-          <span>犀牛支付 提供安全支付服务</span>
+        <div style={S.footer}>
+          <span>🔒 安全加密支付 · 犀牛支付提供技术支持</span>
         </div>
       </div>
     </div>
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
-  container: {
+function AlipayIcon({ active }: { active: boolean }) {
+  return (
+    <div style={{
+      width: 44, height: 44, borderRadius: 10, flexShrink: 0,
+      background: active ? '#1677ff' : '#f0f0f0',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: 22, transition: 'background .2s', marginRight: 14,
+    }}>
+      <span style={{ color: active ? '#fff' : '#999' }}>支</span>
+    </div>
+  );
+}
+
+function WechatIcon({ active }: { active: boolean }) {
+  return (
+    <div style={{
+      width: 44, height: 44, borderRadius: 10, flexShrink: 0,
+      background: active ? '#07c160' : '#f0f0f0',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: 22, transition: 'background .2s', marginRight: 14,
+    }}>
+      <span style={{ color: active ? '#fff' : '#999' }}>微</span>
+    </div>
+  );
+}
+
+const S: Record<string, React.CSSProperties> = {
+  page: {
     minHeight: '100vh',
+    background: '#f5f5f5',
     display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'center',
-    background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)',
-    padding: 16,
   },
-  card: {
-    background: '#fff',
-    borderRadius: 16,
-    padding: '32px 24px',
-    maxWidth: 420,
+  topBar: {
     width: '100%',
-    boxShadow: '0 8px 40px rgba(114,46,209,0.1)',
-    textAlign: 'center' as const,
+    maxWidth: 480,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '14px 20px',
+    background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
   },
-  header: {
+  topBarTitle: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: 700,
+    letterSpacing: 1,
+  },
+  wrap: {
+    width: '100%',
+    maxWidth: 480,
+    padding: '0 0 40px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 0,
+  },
+  amountCard: {
+    background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
+    padding: '24px 24px 32px',
+    textAlign: 'center',
+    color: '#fff',
+  },
+  amountLabel: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.6)',
+    marginBottom: 10,
+    letterSpacing: 0.5,
+  },
+  amountNum: {
+    fontSize: 42,
+    fontWeight: 700,
+    color: '#fff',
+    lineHeight: 1.1,
+    marginBottom: 12,
+  },
+  amountSymbol: {
+    fontSize: 22,
+    fontWeight: 400,
+    verticalAlign: 'middle',
+    marginRight: 2,
+  },
+  orderMeta: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
-    paddingBottom: 16,
-    borderBottom: '1px solid #f0f0f0',
+    gap: 16,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.45)',
   },
-  amountSection: {
-    marginBottom: 24,
-  },
-  countdownBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    marginTop: 8,
-    padding: '4px 12px',
-    borderRadius: 12,
-    background: '#fff7e6',
-    border: '1px solid #ffe58f',
-    color: '#d48806',
-    fontSize: 13,
+  timer: {
+    background: 'rgba(255,165,0,0.2)',
+    border: '1px solid rgba(255,165,0,0.4)',
+    color: '#ffa500',
+    borderRadius: 10,
+    padding: '2px 10px',
+    fontSize: 12,
     fontWeight: 600,
   },
-  qrSection: {
-    textAlign: 'center' as const,
+  methodSection: {
+    background: '#fff',
+    padding: '20px 18px 16px',
+    marginTop: 10,
+    borderRadius: '0 0 0 0',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
   },
-  qrContainer: {
-    position: 'relative' as const,
-    display: 'inline-block',
-    padding: 12,
+  methodLabel: {
+    fontSize: 13,
+    color: '#888',
+    marginBottom: 14,
+    fontWeight: 500,
+  },
+  methodRow: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+  },
+  methodBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '14px 16px',
     borderRadius: 12,
-    border: '2px solid #f0f0f0',
+    border: '1.5px solid #eee',
     background: '#fafafa',
-    margin: '16px 0',
+    cursor: 'pointer',
+    transition: 'all .2s',
+    textAlign: 'left',
+    position: 'relative',
   },
-  qrImage: {
+  methodBtnActive: {
+    border: '1.5px solid #1677ff',
+    background: '#f0f7ff',
+  },
+  methodBtnActiveGreen: {
+    border: '1.5px solid #07c160',
+    background: '#f0fff6',
+  },
+  methodName: {
+    fontSize: 15,
+    fontWeight: 600,
+    color: '#222',
+    marginBottom: 2,
+  },
+  methodDesc: {
+    fontSize: 12,
+    color: '#aaa',
+  },
+  checkMark: {
+    position: 'absolute',
+    right: 14,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    width: 22,
+    height: 22,
+    borderRadius: '50%',
+    background: '#1677ff',
+    color: '#fff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 12,
+    fontWeight: 700,
+  },
+  qrCard: {
+    background: '#fff',
+    marginTop: 10,
+    padding: '28px 24px',
+    textAlign: 'center',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+  },
+  qrTitle: {
+    fontSize: 16,
+    fontWeight: 700,
+    color: '#222',
+    marginBottom: 20,
+    letterSpacing: 0.5,
+  },
+  qrFrame: {
+    position: 'relative',
+    display: 'inline-block',
+    padding: 14,
+    background: '#fff',
+    borderRadius: 12,
+    boxShadow: '0 0 0 1px #eee, 0 4px 20px rgba(0,0,0,0.08)',
+    margin: '0 auto',
+  },
+  qrImg: {
     width: 200,
     height: 200,
     display: 'block',
+    borderRadius: 4,
   },
   qrOverlay: {
-    position: 'absolute' as const,
+    position: 'absolute',
     inset: 0,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'rgba(255,255,255,0.8)',
+    background: 'rgba(255,255,255,0.85)',
     borderRadius: 12,
+    zIndex: 2,
+  },
+  qrCorner: {
+    position: 'absolute',
+    width: 16,
+    height: 16,
   },
   qrHint: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    padding: 16,
-    background: '#f0f5ff',
-    borderRadius: 10,
-    margin: '16px 0',
-    textAlign: 'left' as const,
+    marginTop: 18,
+    fontSize: 14,
+    color: '#555',
+    fontWeight: 500,
   },
-  qrHintIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: '50%',
-    background: '#e6f4ff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  statusBar: {
+  waitingRow: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    padding: '12px 0',
+    marginTop: 14,
+    fontSize: 13,
+    color: '#aaa',
   },
-  statusDot: {
-    width: 8,
-    height: 8,
+  waitingDot: {
+    width: 7,
+    height: 7,
     borderRadius: '50%',
     background: '#52c41a',
-    animation: 'pulse 2s ease-in-out infinite',
+    display: 'inline-block',
+    animation: 'pulse 1.5s ease-in-out infinite',
   },
-  processingSection: {
-    padding: '40px 20px',
-    textAlign: 'center' as const,
+  stateBox: {
+    background: '#fff',
+    marginTop: 10,
+    padding: '48px 24px',
+    textAlign: 'center',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
   },
-  processingAnim: {
-    display: 'flex',
-    justifyContent: 'center',
+  manualCard: {
+    background: '#fff',
+    marginTop: 10,
+    padding: '20px 18px',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
   },
-  failedSection: {
-    padding: '40px 20px',
-    textAlign: 'center' as const,
-  },
-  accountSection: {
-    textAlign: 'left' as const,
-  },
-  sectionTitle: {
+  manualTitle: {
     display: 'flex',
     alignItems: 'center',
-    fontWeight: 600,
     fontSize: 15,
-    color: '#333',
+    fontWeight: 700,
+    color: '#222',
     marginBottom: 16,
-    paddingBottom: 8,
-    borderBottom: '1px solid #f0f0f0',
+    paddingBottom: 12,
+    borderBottom: '1px solid #f5f5f5',
   },
   infoRow: {
     display: 'flex',
     alignItems: 'center',
-    padding: '10px 0',
+    padding: '10px 4px',
     borderBottom: '1px solid #f9f9f9',
   },
   infoLabel: {
-    color: '#999',
-    fontSize: 14,
-    width: 50,
+    color: '#aaa',
+    fontSize: 13,
+    width: 44,
     flexShrink: 0,
   },
-  infoValue: {
+  infoVal: {
     flex: 1,
     fontSize: 14,
     fontWeight: 500,
     color: '#333',
-    wordBreak: 'break-all' as const,
+    wordBreak: 'break-all',
   },
   copyBtn: {
-    background: '#f0e6ff',
-    color: '#6c5ce7',
-    border: 'none',
-    borderRadius: 4,
+    background: '#f0f7ff',
+    color: '#1677ff',
+    border: '1px solid #bae0ff',
+    borderRadius: 6,
     padding: '4px 10px',
     fontSize: 12,
     cursor: 'pointer',
     marginLeft: 8,
     flexShrink: 0,
+    fontWeight: 500,
   },
   amountHint: {
-    background: '#fff7e6',
-    border: '1px solid #ffe58f',
-    borderRadius: 8,
-    padding: 16,
+    background: 'linear-gradient(135deg, #fff7e6, #fff3e0)',
+    border: '1px solid #ffd591',
+    borderRadius: 10,
+    padding: '14px 16px',
     marginTop: 16,
-    textAlign: 'center' as const,
+    textAlign: 'center',
   },
   steps: {
-    marginTop: 16,
-    background: '#f9f9f9',
-    borderRadius: 8,
-    padding: 16,
+    marginTop: 14,
+    background: '#fafafa',
+    borderRadius: 10,
+    padding: '14px 16px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
   },
   step: {
     display: 'flex',
     alignItems: 'center',
-    padding: '6px 0',
-    fontSize: 13,
-    color: '#666',
+    gap: 10,
   },
   stepNum: {
     width: 22,
     height: 22,
     borderRadius: '50%',
-    background: '#6c5ce7',
+    background: 'linear-gradient(135deg, #1677ff, #0958d9)',
     color: '#fff',
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: 12,
     fontWeight: 700,
-    marginRight: 10,
     flexShrink: 0,
   },
   confirmBtn: {
     width: '100%',
-    padding: '14px 0',
-    background: 'linear-gradient(135deg, #6c5ce7, #a29bfe)',
+    padding: '15px 0',
+    background: 'linear-gradient(135deg, #1677ff, #0958d9)',
     color: '#fff',
     border: 'none',
-    borderRadius: 10,
+    borderRadius: 12,
     fontSize: 16,
-    fontWeight: 600,
+    fontWeight: 700,
     cursor: 'pointer',
-    marginTop: 20,
+    marginTop: 18,
+    letterSpacing: 0.5,
+    boxShadow: '0 4px 14px rgba(22,119,255,0.3)',
   },
-  footer: {
-    marginTop: 28,
-    paddingTop: 16,
-    borderTop: '1px solid #f0f0f0',
-    color: '#ccc',
-    fontSize: 12,
+  loadingBox: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '60vh',
+  },
+  statusBox: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '60vh',
+    padding: 32,
+    textAlign: 'center',
   },
   spinner: {
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
     border: '3px solid #f0f0f0',
-    borderTop: '3px solid #6c5ce7',
+    borderTop: '3px solid #1677ff',
     borderRadius: '50%',
     animation: 'spin 1s linear infinite',
     margin: '0 auto',
+  },
+  footer: {
+    marginTop: 24,
+    padding: '0 16px',
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#ccc',
   },
 };
