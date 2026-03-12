@@ -48,7 +48,7 @@ export default function BotManage() {
   const fetchStatus = async () => {
     try {
       const res = await getBotStatus();
-      if (res.data?.code === 0 && res.data?.data) setStatus(res.data.data);
+      if (res?.code === 0 && res?.data) setStatus(res.data);
     } catch { /* ignore */ }
   };
 
@@ -58,17 +58,20 @@ export default function BotManage() {
         getAccounts({ page: 1, size: 1 }),
         getAccounts({ page: 1, size: 1, status: 'available' }),
       ]);
-      if (allRes.data?.code === 0 && allRes.data?.data?.total != null) setAccountsTotalFallback(allRes.data.data.total);
-      if (availRes.data?.code === 0 && availRes.data?.data?.total != null) setAccountsAvailableFallback(availRes.data.data.total);
+      const allD = allRes?.data as { total?: number } | undefined;
+      const availD = availRes?.data as { total?: number } | undefined;
+      if (allRes?.code === 0 && allD?.total != null) setAccountsTotalFallback(allD.total);
+      if (availRes?.code === 0 && availD?.total != null) setAccountsAvailableFallback(availD.total);
     } catch { /* ignore */ }
   };
 
   const fetchSessions = async (page = 1) => {
     try {
       const res = await getBotSessions({ page, size: 10 });
-      if (res.data.code === 0) {
-        setSessions(res.data.data.list || []);
-        setSessionsTotal(res.data.data.total || 0);
+      if (res?.code === 0 && res?.data) {
+        const d = res.data as { list?: any[]; total?: number };
+        setSessions(d.list || []);
+        setSessionsTotal(d.total ?? 0);
       }
     } catch { /* ignore */ }
   };
@@ -76,9 +79,10 @@ export default function BotManage() {
   const fetchProxies = async () => {
     try {
       const res = await getBotProxies();
-      if (res.data.code === 0) {
-        setProxies(res.data.data.proxies || []);
-        setProxyEnabled(res.data.data.enabled || false);
+      if (res?.code === 0 && res?.data) {
+        const d = res.data as { proxies?: any[]; enabled?: boolean };
+        setProxies(d.proxies || []);
+        setProxyEnabled(d.enabled || false);
       }
     } catch { /* ignore */ }
   };
@@ -86,9 +90,10 @@ export default function BotManage() {
   const fetchOrders = async (page = 1, botStatus = '') => {
     try {
       const res = await getBotOrders({ page, size: 10, bot_status: botStatus });
-      if (res.data.code === 0) {
-        setOrders(res.data.data.list || []);
-        setOrdersTotal(res.data.data.total || 0);
+      if (res?.code === 0 && res?.data) {
+        const d = res.data as { list?: any[]; total?: number };
+        setOrders(d.list || []);
+        setOrdersTotal(d.total ?? 0);
       }
     } catch { /* ignore */ }
   };
