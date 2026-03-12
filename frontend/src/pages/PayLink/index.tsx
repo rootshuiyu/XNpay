@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import axios from 'axios';
 
 interface LinkInfo {
@@ -41,7 +41,6 @@ const PAY_METHODS = [
 
 export default function PayLinkPage() {
   const { linkCode } = useParams<{ linkCode: string }>();
-  const navigate = useNavigate();
 
   const [linkInfo, setLinkInfo] = useState<LinkInfo | null>(null);
   const [loading, setLoading] = useState(true);
