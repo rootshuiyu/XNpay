@@ -140,17 +140,8 @@ func (bs *BotService) processOrder(order model.PaymentOrder) {
 		return
 	}
 
-	session, err := SM.GetOrLogin(order.Account, platform)
+	gameOrder, err := platform.CreateOrder(order.Account, order.Amount, order.ClientIP)
 	if err != nil {
-		bs.failOrder(order.ID, fmt.Sprintf("登录失败: %v", err))
-		return
-	}
-
-	time.Sleep(randomDelay(1000, 3000))
-
-	gameOrder, err := platform.CreateOrder(session, order.Amount)
-	if err != nil {
-		SM.Remove(order.Account.ID)
 		bs.failOrder(order.ID, fmt.Sprintf("创建游戏订单失败: %v", err))
 		return
 	}
@@ -161,9 +152,7 @@ func (bs *BotService) processOrder(order model.PaymentOrder) {
 		"game_platform": platform.Name(),
 	})
 
-	time.Sleep(randomDelay(500, 1500))
-
-	qrURL, err := platform.GetQRCode(session, gameOrder)
+	qrURL, err := platform.GetQRCode(gameOrder)
 	if err != nil {
 		bs.failOrder(order.ID, fmt.Sprintf("获取二维码失败: %v", err))
 		return
@@ -236,11 +225,6 @@ func (bs *BotService) checkPayment(order model.PaymentOrder) {
 		return
 	}
 
-	session := SM.Get(order.Account.ID)
-	if session == nil {
-		return
-	}
-
 	var formData map[string]string
 	if order.PayerInfo != "" {
 		json.Unmarshal([]byte(order.PayerInfo), &formData)
@@ -255,7 +239,7 @@ func (bs *BotService) checkPayment(order model.PaymentOrder) {
 
 	model.DB.Model(&order).Update("bot_status", BotStatusPolling)
 
-	status, err := platform.CheckPayStatus(session, gameOrder)
+	status, err := platform.CheckPayStatus(order.Account, gameOrder)
 	if err != nil {
 		log.Printf("[BOT] Payment check error for %s: %v", order.OrderNo, err)
 		return

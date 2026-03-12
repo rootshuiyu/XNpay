@@ -20,6 +20,7 @@ type GameAccount struct {
 	AppSecret   string       `gorm:"size:255" json:"app_secret"`
 	LoginInfo   string       `gorm:"type:text" json:"login_info"`
 	Platform    string       `gorm:"size:50;default:'changyou'" json:"platform"`
+	GameType    string       `gorm:"size:20;default:'5073'" json:"game_type"`
 	Status      string       `gorm:"size:20;default:'available'" json:"status"`
 	OrderID     *uint        `gorm:"index" json:"order_id"`
 	LockedAt    *time.Time   `json:"locked_at"`

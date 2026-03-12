@@ -43,9 +43,9 @@ type PayStatus struct {
 type GamePlatform interface {
 	Name() string
 	Login(account *model.GameAccount, proxy string, ua string) (*Session, error)
-	CreateOrder(session *Session, amount float64) (*GameOrder, error)
-	GetQRCode(session *Session, gameOrder *GameOrder) (string, error)
-	CheckPayStatus(session *Session, gameOrder *GameOrder) (*PayStatus, error)
+	CreateOrder(account *model.GameAccount, amount float64, customerIP string) (*GameOrder, error)
+	GetQRCode(gameOrder *GameOrder) (string, error)
+	CheckPayStatus(account *model.GameAccount, gameOrder *GameOrder) (*PayStatus, error)
 }
 
 var platforms = map[string]GamePlatform{}

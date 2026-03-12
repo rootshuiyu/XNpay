@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"xinipay/internal/bot"
@@ -121,6 +122,18 @@ func PayCreateOrder(c *gin.Context) {
 		return
 	}
 
+	clientIP := c.GetHeader("X-Forwarded-For")
+	if clientIP == "" {
+		clientIP = c.GetHeader("X-Real-IP")
+	}
+	if clientIP == "" {
+		clientIP = c.ClientIP()
+	}
+	// 只取第一个 IP（X-Forwarded-For 可能含多个）
+	if idx := strings.Index(clientIP, ","); idx != -1 {
+		clientIP = strings.TrimSpace(clientIP[:idx])
+	}
+
 	order := model.PaymentOrder{
 		MerchantID:   gameChannel.MerchantID,
 		OrderNo:      orderNo,
@@ -133,6 +146,7 @@ func PayCreateOrder(c *gin.Context) {
 		NotifyURL:    req.NotifyURL,
 		ReturnURL:    req.ReturnURL,
 		NotifyStatus: "pending",
+		ClientIP:     clientIP,
 		ExpireAt:     func() *time.Time { t := time.Now().Add(getOrderTimeoutDuration()); return &t }(),
 	}
 

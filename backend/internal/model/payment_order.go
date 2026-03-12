@@ -22,6 +22,7 @@ type PaymentOrder struct {
 	PayMethod      string       `gorm:"size:20" json:"pay_method"`
 	QrCode         string       `gorm:"size:500" json:"qr_code"`
 	PayURL         string       `gorm:"size:500" json:"pay_url"`
+	ClientIP       string       `gorm:"size:64;default:''" json:"client_ip"`
 	BotStatus      string       `gorm:"size:20;default:''" json:"bot_status"`
 	GameOrderID    string       `gorm:"size:64" json:"game_order_id"`
 	GameOrderSN    string       `gorm:"size:64" json:"game_order_sn"`

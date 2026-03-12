@@ -199,14 +199,20 @@ export default function GameAccounts() {
           <Form.Item name="password" label="密码">
             <Input.Password />
           </Form.Item>
+          <Form.Item name="game_type" label="游戏类型" rules={[{ required: true }]}>
+            <Select options={[
+              { value: '5073', label: '5073 - 天龙八部·归来' },
+              { value: '5057', label: '5057 - 怀旧天龙' },
+            ]} />
+          </Form.Item>
           <Form.Item name="game_name" label="游戏名称" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="app_id" label="App ID">
+          <Form.Item name="app_id" label="App ID（可选）">
             <Input />
           </Form.Item>
-          <Form.Item name="app_secret" label="App Secret">
-            <Input.Password />
+          <Form.Item name="app_secret" label="代理地址（如 socks5://host:port）">
+            <Input />
           </Form.Item>
           <Form.Item name="login_info" label="登录信息(JSON)">
             <Input.TextArea rows={2} />

@@ -60,6 +60,7 @@ export interface GameAccount {
   channel_id: number;
   account_name: string;
   password: string;
+  game_type: string;
   game_name: string;
   app_id: string;
   app_secret: string;

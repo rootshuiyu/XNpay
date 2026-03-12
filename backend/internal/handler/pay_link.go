@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"xinipay/internal/bot"
@@ -113,6 +114,17 @@ func PayLinkSubmit(c *gin.Context) {
 	notifyURL := link.NotifyURL
 	returnURL := link.ReturnURL
 
+	clientIP := c.GetHeader("X-Forwarded-For")
+	if clientIP == "" {
+		clientIP = c.GetHeader("X-Real-IP")
+	}
+	if clientIP == "" {
+		clientIP = c.ClientIP()
+	}
+	if idx := strings.Index(clientIP, ","); idx != -1 {
+		clientIP = strings.TrimSpace(clientIP[:idx])
+	}
+
 	order := model.PaymentOrder{
 		MerchantID:   link.MerchantID,
 		OrderNo:      orderNo,
@@ -125,6 +137,7 @@ func PayLinkSubmit(c *gin.Context) {
 		ReturnURL:    returnURL,
 		NotifyStatus: "pending",
 		PayMethod:    body.PayMethod,
+		ClientIP:     clientIP,
 		ExpireAt:     func() *time.Time { t := time.Now().Add(getOrderTimeoutDuration()); return &t }(),
 	}
 
