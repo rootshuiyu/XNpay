@@ -10,7 +10,7 @@ RUN npm run build
 # ===== Stage 2: Build Go binary =====
 FROM golang:latest AS backend-builder
 
-RUN apk add --no-cache git
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app/backend
 COPY backend/go.mod backend/go.sum ./
