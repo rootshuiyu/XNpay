@@ -34,63 +34,101 @@ func (p *ChangyouPlatform) Login(account *model.GameAccount, proxy string, ua st
 	jar, _ := cookiejar.New(nil)
 	client := BuildHTTPClient(proxy, ua)
 	client.Jar = jar
+	// 允许跟随重定向
 	client.CheckRedirect = nil
 
-	loginURL := "https://passport.changyou.com/accounts/login"
+	// Step 1: 获取登录页面，提取 loginToken (畅游通行证迁移到 auth.changyou.com)
+	loginPageURL := "https://auth.changyou.com/new_login.jsp?s=" + url.QueryEscape(p.BaseURL+"/")
+	req1, err := http.NewRequest("GET", loginPageURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("构建登录页请求失败: %w", err)
+	}
+	req1.Header.Set("User-Agent", ua)
+	req1.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+	req1.Header.Set("Referer", "https://auth.changyou.com/loginpage")
 
+	resp1, err := client.Do(req1)
+	if err != nil {
+		return nil, fmt.Errorf("获取登录页失败: %w", err)
+	}
+	defer resp1.Body.Close()
+	loginPageBody, _ := io.ReadAll(resp1.Body)
+	loginPageHTML := string(loginPageBody)
+	log.Printf("[BOT-CHANGYOU] Login page status: %d, len: %d", resp1.StatusCode, len(loginPageHTML))
+
+	// 提取 loginToken
+	loginToken := extractLoginToken(loginPageHTML)
+	if loginToken == "" {
+		return nil, fmt.Errorf("无法获取 loginToken，响应片段: %s", truncate(loginPageHTML, 400))
+	}
+	log.Printf("[BOT-CHANGYOU] Got loginToken: %s", truncate(loginToken, 40))
+
+	// Step 2: 提交登录表单到 auth.changyou.com/login
 	formData := url.Values{
-		"username": {account.AccountName},
-		"password": {account.Password},
+		"cn":            {account.AccountName},
+		"password":      {account.Password},
+		"loginToken":    {loginToken},
+		"s":             {p.BaseURL + "/"},
+		"inputCnTime":   {fmt.Sprintf("%d", time.Now().UnixMilli())},
+		"theme":         {"null"},
+		"imageId":       {""},
+		"isMiddleLogin": {""},
 	}
 
-	req, err := http.NewRequest("POST", loginURL, strings.NewReader(formData.Encode()))
+	loginSubmitURL := "https://auth.changyou.com/login"
+	req2, err := http.NewRequest("POST", loginSubmitURL, strings.NewReader(formData.Encode()))
 	if err != nil {
 		return nil, fmt.Errorf("构建登录请求失败: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("User-Agent", ua)
-	req.Header.Set("Referer", "https://passport.changyou.com/")
-	req.Header.Set("Origin", "https://passport.changyou.com")
-	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("登录请求失败: %w", err)
-	}
-	defer resp.Body.Close()
-	loginBody, _ := io.ReadAll(resp.Body)
-
-	// 检查是否登录成功
-	loginHTML := string(loginBody)
-	if strings.Contains(loginHTML, "密码错误") || strings.Contains(loginHTML, "账号不存在") ||
-		strings.Contains(loginHTML, "password error") {
-		return nil, fmt.Errorf("账号密码错误: %s", truncate(loginHTML, 200))
-	}
-
-	log.Printf("[BOT-CHANGYOU] Login response status: %d, redirects to: %s",
-		resp.StatusCode, resp.Request.URL.String())
-
-	// 访问充值初始化页面，建立充值域的 session
-	initURL := fmt.Sprintf("%s/tl/tlBankInit.do?chnlType=alipay", p.BaseURL)
-	req2, _ := http.NewRequest("GET", initURL, nil)
+	req2.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req2.Header.Set("User-Agent", ua)
-	req2.Header.Set("Referer", p.BaseURL)
+	req2.Header.Set("Referer", "https://auth.changyou.com/loginpage")
+	req2.Header.Set("Origin", "https://auth.changyou.com")
 	req2.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 
 	resp2, err := client.Do(req2)
 	if err != nil {
-		return nil, fmt.Errorf("初始化充值页失败: %w", err)
+		return nil, fmt.Errorf("登录请求失败: %w", err)
 	}
 	defer resp2.Body.Close()
-	initBody, _ := io.ReadAll(resp2.Body)
-	log.Printf("[BOT-CHANGYOU] Init page status: %d, body len: %d", resp2.StatusCode, len(initBody))
+	loginBody, _ := io.ReadAll(resp2.Body)
+	loginHTML := string(loginBody)
 
+	log.Printf("[BOT-CHANGYOU] Login submit status: %d, final URL: %s, body len: %d",
+		resp2.StatusCode, resp2.Request.URL.String(), len(loginHTML))
+
+	// 检查登录是否失败
+	if strings.Contains(loginHTML, "密码不正确") || strings.Contains(loginHTML, "账号不存在") ||
+		strings.Contains(loginHTML, "帐号或密码") || strings.Contains(loginHTML, "loginToken") ||
+		strings.Contains(loginHTML, "new_login.jsp") {
+		return nil, fmt.Errorf("账号密码错误或登录失败: %s", truncate(loginHTML, 300))
+	}
+
+	// Step 3: 访问充值初始化页面，建立充值域的 session
+	initURL := fmt.Sprintf("%s/tl/tlBankInit.do?chnlType=alipay", p.BaseURL)
+	req3, _ := http.NewRequest("GET", initURL, nil)
+	req3.Header.Set("User-Agent", ua)
+	req3.Header.Set("Referer", p.BaseURL+"/")
+	req3.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+
+	resp3, err := client.Do(req3)
+	if err != nil {
+		return nil, fmt.Errorf("初始化充值页失败: %w", err)
+	}
+	defer resp3.Body.Close()
+	initBody, _ := io.ReadAll(resp3.Body)
+	log.Printf("[BOT-CHANGYOU] Init page status: %d, body len: %d", resp3.StatusCode, len(initBody))
+
+	// 收集所有相关域的 Cookie
 	baseU, _ := url.Parse(p.BaseURL)
-	passportU, _ := url.Parse("https://passport.changyou.com")
-	allCookies := append(jar.Cookies(baseU), jar.Cookies(passportU)...)
+	authU, _ := url.Parse("https://auth.changyou.com")
+	memberU, _ := url.Parse("https://member.changyou.com")
+	allCookies := jar.Cookies(baseU)
+	allCookies = append(allCookies, jar.Cookies(authU)...)
+	allCookies = append(allCookies, jar.Cookies(memberU)...)
 
 	if len(allCookies) == 0 {
-		return nil, fmt.Errorf("登录后未获取到 Cookie，可能登录失败，响应: %s", truncate(loginHTML, 300))
+		return nil, fmt.Errorf("登录后未获取到 Cookie，可能登录失败。响应: %s", truncate(loginHTML, 300))
 	}
 
 	session := &Session{
@@ -105,6 +143,22 @@ func (p *ChangyouPlatform) Login(account *model.GameAccount, proxy string, ua st
 
 	log.Printf("[BOT-CHANGYOU] Account %s login success, cookies: %d", account.AccountName, len(allCookies))
 	return session, nil
+}
+
+// extractLoginToken 从登录页 HTML 中提取 loginToken 隐藏字段值
+func extractLoginToken(html string) string {
+	re := regexp.MustCompile(`name="loginToken"\s+value="([^"]+)"`)
+	m := re.FindStringSubmatch(html)
+	if len(m) > 1 {
+		return m[1]
+	}
+	// 备用匹配
+	re2 := regexp.MustCompile(`value="(LT-[^"]+)"`)
+	m2 := re2.FindStringSubmatch(html)
+	if len(m2) > 1 {
+		return m2[1]
+	}
+	return ""
 }
 
 func (p *ChangyouPlatform) CreateOrder(session *Session, amount float64) (*GameOrder, error) {
