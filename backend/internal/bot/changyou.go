@@ -220,9 +220,44 @@ func (p *ChangyouPlatform) CreateOrder(session *Session, amount float64) (*GameO
 
 	cardCount := pointValue / 20 // 每张卡20点，此字段为卡张数
 
+	// 关键步骤：先访问 tlBankInit.do，建立支付宝充值 session 状态
+	// 服务端需要通过此页面知道用户正在进行支付宝充值，否则 confirmCardOrders.do 会返回渠道选择页
+	initURL2 := fmt.Sprintf("%s/tl/tlBankInit.do?chnlType=alipay", p.BaseURL)
+	reqInit, _ := http.NewRequest("GET", initURL2, nil)
+	reqInit.Header.Set("User-Agent", session.UserAgent)
+	reqInit.Header.Set("Referer", p.BaseURL+"/")
+	reqInit.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+	respInit, err := client.Do(reqInit)
+	if err != nil {
+		return nil, fmt.Errorf("初始化充值 session 失败: %w", err)
+	}
+	defer respInit.Body.Close()
+	initBody2, _ := io.ReadAll(respInit.Body)
+	initHTML2 := string(initBody2)
+	log.Printf("[BOT-CHANGYOU] CreateOrder tlBankInit: status=%d, len=%d, url=%s",
+		respInit.StatusCode, len(initHTML2), respInit.Request.URL.String())
+	// 记录关键字段（前1500字节）用于调试
+	log.Printf("[BOT-CHANGYOU] tlBankInit preview: %s", truncate(initHTML2, 1500))
+
+	// 如果被重定向到登录页说明 session 失效
+	if strings.Contains(initHTML2, "loginpage") || strings.Contains(initHTML2, "login.jsp") {
+		return nil, fmt.Errorf("充值 session 已失效，需要重新登录")
+	}
+
+	// 从 tlBankInit.do 响应中提取 gameType 和 chnl（如果有）
+	// 否则使用默认值
+	gameTypeInit := extractHiddenField(initHTML2, "cardOrders.gameType")
+	chnlInit := extractHiddenField(initHTML2, "cardOrders.chnl")
+	if gameTypeInit == "" {
+		gameTypeInit = "5073"
+	}
+	if chnlInit == "" {
+		chnlInit = "235"
+	}
+
 	formData := url.Values{
-		"cardOrders.gameType":  {"5073"},
-		"cardOrders.chnl":      {"235"},
+		"cardOrders.gameType":  {gameTypeInit},
+		"cardOrders.chnl":      {chnlInit},
 		"chnlType":             {"alipay"},
 		"cardOrders.cardCount": {fmt.Sprintf("%d", cardCount)},
 		"orderCount":           {fmt.Sprintf("%d", orderCount)},
