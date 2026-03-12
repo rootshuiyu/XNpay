@@ -29,6 +29,8 @@ interface BotStatus {
   platforms: string[];
 }
 
+type ApiRes<T = unknown> = { code: number; data?: T };
+
 export default function BotManage() {
   const [status, setStatus] = useState<BotStatus | null>(null);
   const [sessions, setSessions] = useState<any[]>([]);
@@ -47,7 +49,7 @@ export default function BotManage() {
 
   const fetchStatus = async () => {
     try {
-      const res = await getBotStatus();
+      const res = (await getBotStatus()) as ApiRes<BotStatus>;
       if (res?.code === 0 && res?.data) setStatus(res.data);
     } catch { /* ignore */ }
   };
@@ -58,42 +60,39 @@ export default function BotManage() {
         getAccounts({ page: 1, size: 1 }),
         getAccounts({ page: 1, size: 1, status: 'available' }),
       ]);
-      const allD = allRes?.data as { total?: number } | undefined;
-      const availD = availRes?.data as { total?: number } | undefined;
-      if (allRes?.code === 0 && allD?.total != null) setAccountsTotalFallback(allD.total);
-      if (availRes?.code === 0 && availD?.total != null) setAccountsAvailableFallback(availD.total);
+      const all = allRes as ApiRes<{ total?: number }>;
+      const avail = availRes as ApiRes<{ total?: number }>;
+      if (all?.code === 0 && all?.data?.total != null) setAccountsTotalFallback(all.data.total);
+      if (avail?.code === 0 && avail?.data?.total != null) setAccountsAvailableFallback(avail.data.total);
     } catch { /* ignore */ }
   };
 
   const fetchSessions = async (page = 1) => {
     try {
-      const res = await getBotSessions({ page, size: 10 });
+      const res = (await getBotSessions({ page, size: 10 })) as ApiRes<{ list?: any[]; total?: number }>;
       if (res?.code === 0 && res?.data) {
-        const d = res.data as { list?: any[]; total?: number };
-        setSessions(d.list || []);
-        setSessionsTotal(d.total ?? 0);
+        setSessions(res.data.list || []);
+        setSessionsTotal(res.data.total ?? 0);
       }
     } catch { /* ignore */ }
   };
 
   const fetchProxies = async () => {
     try {
-      const res = await getBotProxies();
+      const res = (await getBotProxies()) as ApiRes<{ proxies?: any[]; enabled?: boolean }>;
       if (res?.code === 0 && res?.data) {
-        const d = res.data as { proxies?: any[]; enabled?: boolean };
-        setProxies(d.proxies || []);
-        setProxyEnabled(d.enabled || false);
+        setProxies(res.data.proxies || []);
+        setProxyEnabled(res.data.enabled || false);
       }
     } catch { /* ignore */ }
   };
 
   const fetchOrders = async (page = 1, botStatus = '') => {
     try {
-      const res = await getBotOrders({ page, size: 10, bot_status: botStatus });
+      const res = (await getBotOrders({ page, size: 10, bot_status: botStatus })) as ApiRes<{ list?: any[]; total?: number }>;
       if (res?.code === 0 && res?.data) {
-        const d = res.data as { list?: any[]; total?: number };
-        setOrders(d.list || []);
-        setOrdersTotal(d.total ?? 0);
+        setOrders(res.data.list || []);
+        setOrdersTotal(res.data.total ?? 0);
       }
     } catch { /* ignore */ }
   };
