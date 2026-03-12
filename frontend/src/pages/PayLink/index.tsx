@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 
@@ -39,6 +39,101 @@ const PAY_METHODS = [
   },
 ];
 
+// ---- 虚拟数字键盘 ----
+const KEYS = [
+  ['1', '2', '3'],
+  ['4', '5', '6'],
+  ['7', '8', '9'],
+  ['.', '0', 'DEL'],
+];
+
+function NumKeyboard({
+  onKey,
+  onDone,
+}: {
+  onKey: (k: string) => void;
+  onDone: () => void;
+}) {
+  return (
+    <div style={K.wrap}>
+      <div style={K.grid}>
+        {KEYS.map((row, ri) =>
+          row.map((key) => (
+            <button
+              key={`${ri}-${key}`}
+              style={{
+                ...K.key,
+                ...(key === 'DEL' ? K.delKey : {}),
+              }}
+              onPointerDown={(e) => {
+                e.preventDefault();
+                onKey(key);
+              }}
+            >
+              {key === 'DEL' ? (
+                <svg width="22" height="16" viewBox="0 0 22 16" fill="none">
+                  <path d="M8 1L1 8l7 7h13V1H8z" stroke="#333" strokeWidth="1.5" strokeLinejoin="round" />
+                  <path d="M14 5.5l-4 5M10 5.5l4 5" stroke="#333" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              ) : key}
+            </button>
+          ))
+        )}
+      </div>
+      <button style={K.doneBtn} onPointerDown={(e) => { e.preventDefault(); onDone(); }}>
+        完成
+      </button>
+    </div>
+  );
+}
+
+const K: Record<string, React.CSSProperties> = {
+  wrap: {
+    display: 'flex',
+    gap: 8,
+    padding: '12px 0 0',
+    borderTop: '1px solid #f0f0f0',
+  },
+  grid: {
+    flex: 1,
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: 6,
+  },
+  key: {
+    padding: '16px 0',
+    fontSize: 20,
+    fontWeight: 500,
+    background: '#f5f6fa',
+    border: 'none',
+    borderRadius: 10,
+    cursor: 'pointer',
+    color: '#1a1a2e',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    WebkitTapHighlightColor: 'transparent',
+    userSelect: 'none',
+  },
+  delKey: {
+    background: '#ebebeb',
+  },
+  doneBtn: {
+    width: 72,
+    fontSize: 16,
+    fontWeight: 700,
+    background: 'linear-gradient(135deg, #1677ff, #0958d9)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 10,
+    cursor: 'pointer',
+    WebkitTapHighlightColor: 'transparent',
+    userSelect: 'none',
+    flexShrink: 0,
+  },
+};
+
+// ---- 主页面 ----
 export default function PayLinkPage() {
   const { linkCode } = useParams<{ linkCode: string }>();
 
@@ -50,9 +145,10 @@ export default function PayLinkPage() {
   const [payMethod, setPayMethod] = useState('alipay');
   const [submitting, setSubmitting] = useState(false);
   const [inputError, setInputError] = useState('');
+  const [kbOpen, setKbOpen] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Try payment link first, then cashier config
     axios.get(`/pay/l/${linkCode}`)
       .then(res => {
         if (res.data.code === 0) {
@@ -70,16 +166,48 @@ export default function PayLinkPage() {
       .finally(() => setLoading(false));
   }, [linkCode]);
 
+  // 点击卡片外部关闭键盘
+  useEffect(() => {
+    if (!kbOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
+        setKbOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [kbOpen]);
+
+  const handleKeyPress = (key: string) => {
+    setInputError('');
+    setSelectedQuick(null);
+    if (key === 'DEL') {
+      setAmount(v => v.slice(0, -1));
+      return;
+    }
+    if (key === '.') {
+      if (amount.includes('.')) return;
+      setAmount(v => (v === '' ? '0.' : v + '.'));
+      return;
+    }
+    // 防止前导0
+    if (amount === '0' && key !== '.') {
+      setAmount(key);
+      return;
+    }
+    // 小数点后最多2位
+    const dotIdx = amount.indexOf('.');
+    if (dotIdx !== -1 && amount.length - dotIdx > 2) return;
+    // 整数部分最多6位
+    if (dotIdx === -1 && amount.replace('-', '').length >= 6) return;
+    setAmount(v => v + key);
+  };
+
   const handleQuickSelect = (val: number) => {
     setSelectedQuick(val);
     setAmount(val.toString());
     setInputError('');
-  };
-
-  const handleAmountChange = (v: string) => {
-    setAmount(v);
-    setSelectedQuick(null);
-    setInputError('');
+    setKbOpen(false);
   };
 
   const handleSubmit = async () => {
@@ -97,20 +225,15 @@ export default function PayLinkPage() {
       setInputError(`最高充值 ¥${linkInfo.max_amount}`);
       return;
     }
-
+    setKbOpen(false);
     setSubmitting(true);
     try {
-      // Use the correct API based on source
       const apiUrl = (linkInfo as any)?._source === 'cashier'
         ? `/pay/c/${linkCode}`
         : `/pay/l/${linkCode}`;
-      const res = await axios.post(apiUrl, {
-        amount: amount,
-        pay_method: payMethod,
-      });
+      const res = await axios.post(apiUrl, { amount, pay_method: payMethod });
       if (res.data.code === 0) {
-        const { cashier_url } = res.data.data;
-        window.location.href = cashier_url;
+        window.location.href = res.data.data.cashier_url;
       } else {
         setInputError(res.data.message || '提交失败');
       }
@@ -150,7 +273,7 @@ export default function PayLinkPage() {
 
   return (
     <div style={S.bg}>
-      <div style={S.card}>
+      <div style={S.card} ref={cardRef}>
         {/* Header */}
         <div style={S.header}>
           <img src="/rhino-logo.png" alt="logo" style={{ width: 32, height: 32, marginRight: 8 }} />
@@ -168,17 +291,20 @@ export default function PayLinkPage() {
             </span>
           </div>
 
-          <div style={S.amountInputWrap}>
+          {/* 点击区域触发键盘 */}
+          <div
+            style={S.amountInputWrap}
+            onClick={() => setKbOpen(true)}
+          >
             <span style={S.yuan}>¥</span>
-            <input
-              type="number"
-              value={amount}
-              onChange={e => handleAmountChange(e.target.value)}
-              placeholder="0.00"
-              style={S.amountInput}
-              min={linkInfo?.min_amount}
-              max={linkInfo?.max_amount}
-            />
+            <span style={{
+              ...S.amountDisplay,
+              color: amount ? '#1a1a2e' : '#ccc',
+            }}>
+              {amount || '0.00'}
+            </span>
+            {/* 光标闪烁 */}
+            {kbOpen && <span style={S.cursor} />}
           </div>
 
           {inputError && (
@@ -187,7 +313,7 @@ export default function PayLinkPage() {
             </p>
           )}
 
-          {/* Quick amounts */}
+          {/* 快捷金额 */}
           <div style={S.quickRow}>
             {(linkInfo?.quick_amounts || []).map(v => (
               <button
@@ -204,7 +330,7 @@ export default function PayLinkPage() {
           </div>
         </div>
 
-        {/* Pay Method */}
+        {/* 支付方式 */}
         <div style={S.section}>
           <div style={S.sectionTitle}>选择支付方式</div>
           {PAY_METHODS.map(m => (
@@ -233,7 +359,7 @@ export default function PayLinkPage() {
           ))}
         </div>
 
-        {/* Submit Button */}
+        {/* 提交按钮 */}
         <button
           style={{
             ...S.submitBtn,
@@ -246,10 +372,23 @@ export default function PayLinkPage() {
           {submitting ? '处理中...' : `立即支付${currentAmount > 0 ? ` ¥${currentAmount.toFixed(2)}` : ''}`}
         </button>
 
-        <div style={S.footer}>
-          安全支付由犀牛支付提供保障
+        <div style={S.footer}>安全支付由犀牛支付提供保障</div>
+
+        {/* 虚拟数字键盘（内嵌在卡片底部，滑入） */}
+        <div style={{
+          ...S.kbContainer,
+          maxHeight: kbOpen ? 320 : 0,
+          opacity: kbOpen ? 1 : 0,
+          overflow: 'hidden',
+          transition: 'max-height 0.28s cubic-bezier(0.4,0,0.2,1), opacity 0.2s',
+        }}>
+          <NumKeyboard onKey={handleKeyPress} onDone={() => setKbOpen(false)} />
         </div>
       </div>
+
+      <style>{`
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+      `}</style>
     </div>
   );
 }
@@ -266,7 +405,7 @@ const S: Record<string, React.CSSProperties> = {
   card: {
     background: '#fff',
     borderRadius: 16,
-    padding: '24px 20px 20px',
+    padding: '24px 20px 16px',
     width: '100%',
     maxWidth: 420,
     boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
@@ -313,6 +452,8 @@ const S: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
+    cursor: 'text',
+    userSelect: 'none',
   },
   yuan: {
     fontSize: 28,
@@ -321,15 +462,23 @@ const S: Record<string, React.CSSProperties> = {
     marginRight: 4,
     lineHeight: 1,
   },
-  amountInput: {
-    border: 'none',
-    outline: 'none',
+  amountDisplay: {
     fontSize: 40,
     fontWeight: 700,
-    color: '#1a1a2e',
-    width: 200,
-    textAlign: 'center' as const,
-    background: 'transparent',
+    lineHeight: 1,
+    minWidth: 80,
+    letterSpacing: 1,
+  },
+  cursor: {
+    display: 'inline-block',
+    width: 2,
+    height: 40,
+    background: '#1677ff',
+    borderRadius: 1,
+    marginLeft: 2,
+    animation: 'blink 1s step-end infinite',
+    verticalAlign: 'middle',
+    flexShrink: 0,
   },
   quickRow: {
     display: 'flex',
@@ -346,7 +495,6 @@ const S: Record<string, React.CSSProperties> = {
     fontSize: 14,
     cursor: 'pointer',
     fontWeight: 500,
-    transition: 'all 0.2s',
   },
   quickBtnActive: {
     borderColor: '#1677ff',
@@ -361,9 +509,6 @@ const S: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     color: '#444',
     marginBottom: 12,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
   },
   methodCard: {
     display: 'flex',
@@ -374,7 +519,6 @@ const S: Record<string, React.CSSProperties> = {
     border: '1.5px solid #f0f0f0',
     marginBottom: 10,
     cursor: 'pointer',
-    transition: 'all 0.2s',
     background: '#fafafa',
   },
   methodCardActive: {
@@ -429,5 +573,9 @@ const S: Record<string, React.CSSProperties> = {
     textAlign: 'center' as const,
     color: '#bbb',
     fontSize: 12,
+    marginBottom: 4,
+  },
+  kbContainer: {
+    marginTop: 4,
   },
 };
