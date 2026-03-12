@@ -1,0 +1,25 @@
+server:
+  port: 8090
+  mode: release
+
+database:
+  host: postgres
+  port: 5432
+  user: xinipay
+  password: "CHANGE_ME_STRONG_PASSWORD"
+  dbname: xinipay
+  sslmode: disable
+
+redis:
+  host: 127.0.0.1
+  port: 6379
+  password: ""
+  db: 0
+
+jwt:
+  secret: "CHANGE_ME_RANDOM_JWT_SECRET_AT_LEAST_32_CHARS"
+  expire: 24
+
+license:
+  enabled: true
+  file_path: "./license.enc"

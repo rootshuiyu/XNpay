@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Build output
+dist/
+frontend/dist/
+backend/xinipay
+backend/xinipay.exe
+backend/fingerprint
+backend/fingerprint.exe
+
+# Keys - NEVER commit
+private.pem
+*.pem
+!public.pem.example
+
+# License files
+license.enc
+
+# IDE
+.cursor/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.*
+
+# Docker volumes
+postgres-data/
+ssl/
+
+# Go
+vendor/
+
+# Temp
+tmp/
+*.tmp

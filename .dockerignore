@@ -1,0 +1,16 @@
+.git
+.github
+.cursor
+.gitignore
+node_modules
+frontend/node_modules
+frontend/dist
+dist
+private.pem
+license.enc
+*.md
+*.log
+auth-server
+backend/cmd/license-tool
+ssl
+postgres-data

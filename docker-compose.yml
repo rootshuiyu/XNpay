@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  xinipay:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PUBLIC_KEY_PEM: "${PUBLIC_KEY_PEM}"
+    container_name: xinipay
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./license.enc:/app/license.enc:ro
+      - ./config.production.yaml:/app/config.yaml:ro
+      - xinipay-logs:/app/logs
+    environment:
+      - GIN_MODE=release
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - xinipay-net
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: xinipay-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: xinipay
+      POSTGRES_USER: xinipay
+      POSTGRES_PASSWORD: "${DB_PASSWORD:-StrongPassword123!}"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U xinipay"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - xinipay-net
+
+  nginx:
+    image: nginx:alpine
+    container_name: xinipay-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - xinipay
+    networks:
+      - xinipay-net
+
+volumes:
+  postgres-data:
+  xinipay-logs:
+
+networks:
+  xinipay-net:
+    driver: bridge

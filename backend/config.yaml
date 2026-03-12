@@ -1,0 +1,21 @@
+server:
+  port: 8090
+  mode: debug
+
+database:
+  host: 127.0.0.1
+  port: 5432
+  user: postgres
+  password: "123456"
+  dbname: xinipay
+  sslmode: disable
+
+redis:
+  host: 127.0.0.1
+  port: 6379
+  password: ""
+  db: 0
+
+jwt:
+  secret: xinipay-jwt-secret-key-2026
+  expire: 24
