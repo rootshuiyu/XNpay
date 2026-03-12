@@ -53,6 +53,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    permissions:
+      packages: read
 
     steps:
       - name: Deploy to server via SSH
@@ -62,12 +64,14 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
           port: ${{ secrets.SERVER_PORT }}
-          timeout: 60s
+          timeout: 120s
           script: |
             cd /opt/xinipay
             git pull origin main
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker pull ghcr.io/rootshuiyu/xnpay:latest
-            docker compose -f docker-compose.prod.yml down
+            docker stop xinipay 2>/dev/null || true
+            docker rm xinipay 2>/dev/null || true
             docker compose -f docker-compose.prod.yml up -d
             echo "✅ 部署完成: $(date)"
             docker compose -f docker-compose.prod.yml ps
