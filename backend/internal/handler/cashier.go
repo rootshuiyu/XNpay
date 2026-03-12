@@ -147,15 +147,37 @@ func CashierPublicSubmit(c *gin.Context) {
 		clientIP = strings.TrimSpace(clientIP[:idx])
 	}
 
+	// Find game account
+	var accountID uint
+	if cashier.Account != nil && cashier.AccountID != 0 {
+		accountID = cashier.AccountID
+	} else {
+		var account model.GameAccount
+		if err := model.DB.Where("status = 'available'").First(&account).Error; err != nil {
+			pkg.Fail(c, 500, "暂无可用游戏账号，请稍后再试")
+			return
+		}
+		accountID = account.ID
+	}
+
+	// Find first available channel
+	var channel model.GameChannel
+	if err := model.DB.Where("status = 1").First(&channel).Error; err != nil {
+		pkg.Fail(c, 500, "暂无可用支付渠道，请稍后再试")
+		return
+	}
+
 	outTradeNo := fmt.Sprintf("CL%d%04d", time.Now().UnixNano()/1e6, rand.Intn(10000))
 	expireAt := time.Now().Add(30 * time.Minute)
 
+	amountVal, _ := strconv.ParseFloat(req.Amount, 64)
 	order := model.PaymentOrder{
 		OrderNo:      fmt.Sprintf("XN%d%04d", time.Now().UnixNano()/1e6, rand.Intn(10000)),
 		OutTradeNo:   outTradeNo,
 		MerchantID:   0,
-		ChannelID:    0,
-		Amount:       func() float64 { v, _ := strconv.ParseFloat(req.Amount, 64); return v }(),
+		AccountID:    accountID,
+		ChannelID:    channel.ID,
+		Amount:       amountVal,
 		Subject:      cashier.CashierName,
 		Status:       "pending",
 		BotStatus:    "queued",
@@ -164,19 +186,8 @@ func CashierPublicSubmit(c *gin.Context) {
 		ExpireAt:     &expireAt,
 	}
 
-	// Bind game account
-	if cashier.Account != nil {
-		order.AccountID = cashier.AccountID
-	} else {
-		// Auto-assign available account
-		var account model.GameAccount
-		if err := model.DB.Where("status = 'available' AND platform = 'changyou'").First(&account).Error; err == nil {
-			order.AccountID = account.ID
-		}
-	}
-
 	if err := model.DB.Create(&order).Error; err != nil {
-		pkg.Fail(c, 500, "创建订单失败")
+		pkg.Fail(c, 500, "创建订单失败: "+err.Error())
 		return
 	}
 
