@@ -50,7 +50,8 @@ export default function PayLinks() {
     setLoading(true);
     try {
       const res = await axios.get(`/api/pay-links?page=${p}&size=20`, { headers });
-      const d = (res as unknown as { data?: { data?: { list?: PayLink[]; total?: number } } }).data?.data;
+      // axios interceptor returns response.data directly, so res = { code, data, message }
+      const d = (res as unknown as { data?: { list?: PayLink[]; total?: number } }).data;
       setList(d?.list || []);
       setTotal(d?.total || 0);
     } catch {
@@ -63,7 +64,7 @@ export default function PayLinks() {
   const fetchChannels = async () => {
     try {
       const res = await axios.get('/api/channels?size=200', { headers });
-      const d = (res as unknown as { data?: { data?: { list?: Channel[] } } }).data?.data;
+      const d = (res as unknown as { data?: { list?: Channel[] } }).data;
       setChannels(d?.list || []);
     } catch { /* ignore */ }
   };
