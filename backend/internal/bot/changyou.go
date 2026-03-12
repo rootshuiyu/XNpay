@@ -288,7 +288,12 @@ func (p *ChangyouPlatform) CreateOrder(session *Session, amount float64) (*GameO
 
 	log.Printf("[BOT-CHANGYOU] tlBankInit POST response: status=%d, body_len=%d, url=%s",
 		respPost.StatusCode, len(postHTML), respPost.Request.URL.String())
-	log.Printf("[BOT-CHANGYOU] tlBankInit POST body preview: %s", truncate(postHTML, 1500))
+	// 输出前1500字节和后1500字节，确保能看到 cardOrders.id 字段
+	log.Printf("[BOT-CHANGYOU] tlBankInit POST body (first): %s", truncate(postHTML, 1500))
+	if len(postHTML) > 1500 {
+		tail := postHTML[len(postHTML)-1500:]
+		log.Printf("[BOT-CHANGYOU] tlBankInit POST body (last 1500): %s", tail)
+	}
 
 	// 先尝试从 tlBankInit POST 结果中提取订单ID
 	var html string
