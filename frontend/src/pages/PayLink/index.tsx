@@ -141,7 +141,6 @@ export default function PayLinkPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [amount, setAmount] = useState('');
-  const [selectedQuick, setSelectedQuick] = useState<number | null>(null);
   const [payMethod, setPayMethod] = useState('alipay');
   const [submitting, setSubmitting] = useState(false);
   const [inputError, setInputError] = useState('');
@@ -180,7 +179,6 @@ export default function PayLinkPage() {
 
   const handleKeyPress = (key: string) => {
     setInputError('');
-    setSelectedQuick(null);
     if (key === 'DEL') {
       setAmount(v => v.slice(0, -1));
       return;
@@ -201,13 +199,6 @@ export default function PayLinkPage() {
     // 整数部分最多6位
     if (dotIdx === -1 && amount.replace('-', '').length >= 6) return;
     setAmount(v => v + key);
-  };
-
-  const handleQuickSelect = (val: number) => {
-    setSelectedQuick(val);
-    setAmount(val.toString());
-    setInputError('');
-    setKbOpen(false);
   };
 
   const handleSubmit = async () => {
@@ -286,9 +277,7 @@ export default function PayLinkPage() {
         <div style={S.amountBox}>
           <div style={S.amountLabel}>
             <span>请输入付款金额</span>
-            <span style={S.limitTag}>
-              ⓘ 限额：¥{linkInfo?.min_amount}~¥{linkInfo?.max_amount}
-            </span>
+            <span style={S.limitTag}>收银台</span>
           </div>
 
           {/* 点击区域触发键盘 */}
@@ -313,21 +302,6 @@ export default function PayLinkPage() {
             </p>
           )}
 
-          {/* 快捷金额 */}
-          <div style={S.quickRow}>
-            {(linkInfo?.quick_amounts || []).map(v => (
-              <button
-                key={v}
-                style={{
-                  ...S.quickBtn,
-                  ...(selectedQuick === v ? S.quickBtnActive : {}),
-                }}
-                onClick={() => handleQuickSelect(v)}
-              >
-                ¥{v}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* 支付方式 */}
