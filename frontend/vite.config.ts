@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   build: {
     sourcemap: false,
-    minify: 'terser',
+    minify: true,
     rollupOptions: {
       output: {
         chunkFileNames: 'assets/[hash].js',
