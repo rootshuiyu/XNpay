@@ -137,6 +137,15 @@ func SetupRouter() *gin.Engine {
 			botAPI.GET("/qr-proxy", handler.BotGetQRProxy)
 		}
 
+		payLinks := protected.Group("/pay-links")
+		{
+			payLinks.GET("", handler.AdminGetPayLinks)
+			payLinks.POST("", handler.AdminCreatePayLink)
+			payLinks.PUT("/:id", handler.AdminUpdatePayLink)
+			payLinks.DELETE("/:id", handler.AdminDeletePayLink)
+			payLinks.PUT("/:id/toggle", handler.AdminTogglePayLink)
+		}
+
 		merchants := protected.Group("/merchants")
 		merchants.Use(middleware.AdminOnly())
 		{
@@ -197,6 +206,10 @@ merchant.Use(middleware.MerchantAuth())
 		pay.POST("/mock/callback/:order_no", handler.MockPayCallback)
 
 		pay.GET("/qr/:order_no", handler.PublicQRProxy)
+
+		// 收款链接（公开，无需签名）
+		pay.GET("/l/:link_code", handler.PayLinkInfo)
+		pay.POST("/l/:link_code", handler.PayLinkSubmit)
 	}
 
 	return r

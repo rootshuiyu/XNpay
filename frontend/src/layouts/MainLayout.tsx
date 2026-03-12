@@ -27,6 +27,7 @@ import {
   ProfileOutlined,
   AuditOutlined,
   RobotOutlined,
+  LinkOutlined,
 } from '@ant-design/icons';
 import useAuthStore from '../store/useAuthStore';
 import { getProfile } from '../api/auth';
@@ -79,6 +80,7 @@ const menuItems = [
     ],
   },
   { key: '/bot-manage', icon: <RobotOutlined />, label: '上号器管理' },
+  { key: '/pay-links', icon: <LinkOutlined />, label: '收款链接' },
   { key: '/api-doc', icon: <ApiOutlined />, label: 'API 文档' },
 ];
 
@@ -101,6 +103,7 @@ const breadcrumbMap: Record<string, string> = {
   '/automation': '自动化中心',
   '/operation-logs': '操作日志',
   '/bot-manage': '上号器管理',
+  '/pay-links': '收款链接',
 };
 
 export default function MainLayout() {

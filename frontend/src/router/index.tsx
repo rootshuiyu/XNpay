@@ -19,6 +19,8 @@ import DeliveryEnhancement from '../pages/DeliveryEnhancement';
 import Automation from '../pages/Automation';
 import OperationLogs from '../pages/OperationLogs';
 import BotManage from '../pages/BotManage';
+import PayLinks from '../pages/PayLinks';
+import PayLinkPage from '../pages/PayLink';
 import CashierPage from '../pages/CashierPage';
 import MerchantManage from '../pages/MerchantManage';
 import MerchantLogin from '../pages/MerchantLogin';
@@ -39,6 +41,10 @@ const router = createBrowserRouter([
   {
     path: '/cashier/:orderNo',
     element: <CashierPage />,
+  },
+  {
+    path: '/pay/:linkCode',
+    element: <PayLinkPage />,
   },
   {
     path: '/merchant/login',
@@ -82,6 +88,7 @@ const router = createBrowserRouter([
       { path: 'automation', element: <Automation /> },
       { path: 'operation-logs', element: <OperationLogs /> },
       { path: 'bot-manage', element: <BotManage /> },
+      { path: 'pay-links', element: <PayLinks /> },
     ],
   },
 ]);
