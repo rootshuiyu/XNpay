@@ -5,10 +5,10 @@ frontend/node_modules/
 # Build output
 dist/
 frontend/dist/
+*.exe
 backend/xinipay
-backend/xinipay.exe
 backend/fingerprint
-backend/fingerprint.exe
+auth-server/
 
 # Keys - NEVER commit
 private.pem
