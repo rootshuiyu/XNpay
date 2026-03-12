@@ -3,7 +3,6 @@ name: Build & Deploy
 on:
   push:
     branches: [main]
-    tags: ['v*']
   workflow_dispatch:
 
 env:
@@ -37,22 +36,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=
             type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Read public key
-        id: pubkey
-        run: |
-          if [ -f public.pem ]; then
-            echo "PUBLIC_KEY_PEM<<KEYEOF" >> $GITHUB_ENV
-            cat public.pem >> $GITHUB_ENV
-            echo "KEYEOF" >> $GITHUB_ENV
-          else
-            echo "PUBLIC_KEY_PEM=" >> $GITHUB_ENV
-          fi
+            type=sha,prefix=sha-
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -61,8 +46,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            PUBLIC_KEY_PEM=${{ env.PUBLIC_KEY_PEM }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -78,18 +61,13 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
-          port: 22
-          timeout: 120s
+          port: ${{ secrets.SERVER_PORT }}
+          timeout: 60s
           script: |
-            APP_DIR="/opt/xinipay"
-            if [ -d "$APP_DIR" ]; then
-              cd "$APP_DIR"
-              git pull origin main
-            else
-              git clone https://github.com/rootshuiyu/XNpay.git "$APP_DIR"
-              cd "$APP_DIR"
-            fi
-            docker compose down 2>/dev/null || true
-            docker compose up -d --build
-            echo "Deploy done at $(date)"
-            docker compose ps
+            cd /opt/xinipay
+            git pull origin main
+            docker pull ghcr.io/rootshuiyu/xnpay:latest
+            docker compose -f docker-compose.prod.yml down
+            docker compose -f docker-compose.prod.yml up -d
+            echo "✅ 部署完成: $(date)"
+            docker compose -f docker-compose.prod.yml ps
