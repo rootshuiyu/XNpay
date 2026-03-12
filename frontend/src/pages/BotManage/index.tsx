@@ -6,6 +6,7 @@ import {
   getBotProxies, addBotProxy, removeBotProxy, toggleBotProxy,
   botProxyHealthCheck, getBotOrders, retryBotOrder
 } from '../../api/bot';
+import { getAccounts } from '../../api/gameAccount';
 
 interface BotStatus {
   running: boolean;
@@ -41,11 +42,24 @@ export default function BotManage() {
   const [proxyForm] = Form.useForm();
   const [orderFilter, setOrderFilter] = useState('');
   const [orderPage, setOrderPage] = useState(1);
+  const [accountsTotalFallback, setAccountsTotalFallback] = useState(0);
+  const [accountsAvailableFallback, setAccountsAvailableFallback] = useState(0);
 
   const fetchStatus = async () => {
     try {
       const res = await getBotStatus();
-      if (res.data.code === 0) setStatus(res.data.data);
+      if (res.data?.code === 0 && res.data?.data) setStatus(res.data.data);
+    } catch { /* ignore */ }
+  };
+
+  const fetchAccountCounts = async () => {
+    try {
+      const [allRes, availRes] = await Promise.all([
+        getAccounts({ page: 1, size: 1 }),
+        getAccounts({ page: 1, size: 1, status: 'available' }),
+      ]);
+      if (allRes.data?.code === 0 && allRes.data?.data?.total != null) setAccountsTotalFallback(allRes.data.data.total);
+      if (availRes.data?.code === 0 && availRes.data?.data?.total != null) setAccountsAvailableFallback(availRes.data.data.total);
     } catch { /* ignore */ }
   };
 
@@ -81,6 +95,7 @@ export default function BotManage() {
 
   useEffect(() => {
     fetchStatus();
+    fetchAccountCounts();
     fetchSessions();
     fetchProxies();
     fetchOrders();
@@ -262,7 +277,7 @@ export default function BotManage() {
         </Col>
         <Col span={4}>
           <Card className="stat-card">
-            <Statistic title="可用账号" value={`${status?.available_accounts || 0}/${status?.total_accounts || 0}`} valueStyle={{ color: '#fa8c16' }} />
+            <Statistic title="可用账号" value={`${status?.available_accounts ?? accountsAvailableFallback ?? 0}/${status?.total_accounts ?? accountsTotalFallback ?? 0}`} valueStyle={{ color: '#fa8c16' }} />
           </Card>
         </Col>
       </Row>
@@ -278,7 +293,7 @@ export default function BotManage() {
           >
             {status?.running ? '停止 Bot' : '启动 Bot'}
           </Button>
-          <Button icon={<SyncOutlined />} onClick={() => { fetchStatus(); fetchSessions(); fetchOrders(orderPage, orderFilter); }}>
+          <Button icon={<SyncOutlined />} onClick={() => { fetchStatus(); fetchAccountCounts(); fetchSessions(); fetchOrders(orderPage, orderFilter); }}>
             刷新
           </Button>
           <span style={{ color: '#999', fontSize: 13 }}>
