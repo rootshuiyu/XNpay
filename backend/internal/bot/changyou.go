@@ -236,8 +236,11 @@ func (p *ChangyouPlatform) CreateOrder(session *Session, amount float64) (*GameO
 	initHTML2 := string(initBody2)
 	log.Printf("[BOT-CHANGYOU] CreateOrder tlBankInit: status=%d, len=%d, url=%s",
 		respInit.StatusCode, len(initHTML2), respInit.Request.URL.String())
-	// 记录关键字段（前1500字节）用于调试
-	log.Printf("[BOT-CHANGYOU] tlBankInit preview: %s", truncate(initHTML2, 1500))
+	// 完整输出 GET 响应（分3段），找到真正的表单字段
+	log.Printf("[BOT-CHANGYOU] tlBankInit GET [0-1500]: %s", truncate(initHTML2, 1500))
+	if len(initHTML2) > 1500 {
+		log.Printf("[BOT-CHANGYOU] tlBankInit GET [1500-end]: %s", truncate(initHTML2[1500:], 3500))
+	}
 
 	// 如果被重定向到登录页说明 session 失效
 	if strings.Contains(initHTML2, "loginpage") || strings.Contains(initHTML2, "login.jsp") {
