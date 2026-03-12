@@ -128,14 +128,17 @@ func PayLinkSubmit(c *gin.Context) {
 		ExpireAt:     func() *time.Time { t := time.Now().Add(getOrderTimeoutDuration()); return &t }(),
 	}
 
-	if err := model.DB.Create(&order).Error; err != nil {
-		c.JSON(http.StatusOK, gin.H{"code": 500, "message": "创建订单失败"})
+	assigned, assignErr := service.AssignAccount(link.ChannelID, 0)
+	if assignErr != nil {
+		c.JSON(http.StatusOK, gin.H{"code": 500, "message": "暂无可用账号，请稍后重试"})
 		return
 	}
+	order.AccountID = assigned.ID
 
-	assigned, err := service.AssignAccount(link.ChannelID, order.ID)
-	if err == nil {
-		model.DB.Model(&order).Update("account_id", assigned.ID)
+	if err := model.DB.Create(&order).Error; err != nil {
+		service.ReleaseAccount(assigned.ID)
+		c.JSON(http.StatusOK, gin.H{"code": 500, "message": "创建订单失败"})
+		return
 	}
 
 	if bot.Bot.IsRunning() {

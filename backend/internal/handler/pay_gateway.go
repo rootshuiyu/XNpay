@@ -114,11 +114,19 @@ func PayCreateOrder(c *gin.Context) {
 		subject = gameChannel.Name + " - 充值"
 	}
 
+	// 先分配账号，避免 account_id=0 违反外键约束
+	assigned, err := service.AssignAccount(gameChannel.ID, 0)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"code": 500, "message": "暂无可用账号，请稍后重试"})
+		return
+	}
+
 	order := model.PaymentOrder{
 		MerchantID:   gameChannel.MerchantID,
 		OrderNo:      orderNo,
 		OutTradeNo:   req.OutTradeNo,
 		ChannelID:    gameChannel.ID,
+		AccountID:    assigned.ID,
 		Amount:       amount,
 		Subject:      subject,
 		Status:       "pending",
@@ -129,18 +137,13 @@ func PayCreateOrder(c *gin.Context) {
 	}
 
 	if err := model.DB.Create(&order).Error; err != nil {
-		c.JSON(http.StatusOK, gin.H{"code": 500, "message": "创建订单失败"})
+		service.ReleaseAccount(assigned.ID)
+		c.JSON(http.StatusOK, gin.H{"code": 500, "message": "创建订单失败: " + err.Error()})
 		return
 	}
 
-	assigned, err := service.AssignAccount(gameChannel.ID, order.ID)
-	if err != nil {
-		model.DB.Model(&order).Update("status", "no_account")
-		c.JSON(http.StatusOK, gin.H{"code": 500, "message": "暂无可用账号，请稍后重试"})
-		return
-	}
-
-	model.DB.Model(&order).Update("account_id", assigned.ID)
+	// 更新账号绑定的真实订单ID
+	model.DB.Model(&assigned).Update("order_id", order.ID)
 
 	if bot.Bot.IsRunning() {
 		model.DB.Model(&order).Update("bot_status", bot.BotStatusQueued)
