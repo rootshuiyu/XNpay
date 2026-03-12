@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Card, Row, Col, Statistic, Spin } from 'antd';
+import { Card, Row, Col, Spin } from 'antd';
 import { WalletOutlined, DollarOutlined, LockOutlined, PercentageOutlined } from '@ant-design/icons';
 import { getMerchantBalance } from '../../api/merchant';
 

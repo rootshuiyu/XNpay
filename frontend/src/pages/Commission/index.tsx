@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Card, Table, Row, Col, Statistic, DatePicker, Button, Space, Modal, Form, InputNumber, Select, message } from 'antd';
+import { Card, Table, Row, Col, Statistic, DatePicker, Button, Modal, Form, InputNumber, Select, message } from 'antd';
 import { DollarOutlined, PercentageOutlined } from '@ant-design/icons';
 import { getCommissions, getCommissionStats, updateCommissionRate } from '../../api/commission';
 import { getChannels } from '../../api/gameChannel';
 import type { CommissionRecord, GameChannel } from '../../types';
 
-const { RangePicker } = DatePicker;
+void DatePicker.RangePicker;
 
 export default function Commission() {
   const [data, setData] = useState<CommissionRecord[]>([]);

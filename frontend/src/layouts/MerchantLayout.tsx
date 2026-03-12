@@ -44,7 +44,7 @@ export default function MerchantLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { merchant, setAuth, logout, token } = useMerchantStore();
-  const { token: themeToken } = theme.useToken();
+  void theme.useToken();
 
   useEffect(() => {
     if (!token) {

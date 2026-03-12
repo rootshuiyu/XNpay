@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+// @ts-ignore
 import obfuscatorPlugin from 'vite-plugin-obfuscator'
 
 const isProduction = process.env.NODE_ENV === 'production'
@@ -30,16 +31,7 @@ export default defineConfig({
   ],
   build: {
     sourcemap: false,
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-      },
-      mangle: {
-        toplevel: true,
-      },
-    },
+    minify: 'terser' as const,
     rollupOptions: {
       output: {
         manualChunks: undefined,

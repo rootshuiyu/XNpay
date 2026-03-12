@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Tag, Select, Modal, Form, Input, InputNumber, message, Space } from 'antd';
+import { Table, Button, Tag, Select, Modal, Form, Input, message, Space } from 'antd';
 import { PlusOutlined, UploadOutlined } from '@ant-design/icons';
 import { getMerchantAccounts, createMerchantAccount, batchImportMerchantAccounts, getMerchantChannels } from '../../api/merchant';
 

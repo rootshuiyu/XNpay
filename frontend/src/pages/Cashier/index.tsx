@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card, Table, Button, Modal, Form, Input, Select, Switch, Space, Popconfirm, Tag, message, Typography } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getCashiers, createCashier, updateCashier, deleteCashier } from '../../api/cashier';
 import { getAccounts } from '../../api/gameAccount';
 import type { CashierConfig, GameAccount } from '../../types';
@@ -61,11 +61,9 @@ export default function Cashier() {
     fetchData();
   };
 
-  const copyUrl = (url: string) => {
-    const fullUrl = `${window.location.origin}${url}`;
-    navigator.clipboard.writeText(fullUrl);
-    message.success('已复制到剪贴板');
-  };
+  /* eslint-disable @typescript-eslint/no-unused-vars */
+  const copyUrl = (url: string) => void navigator.clipboard.writeText(`${window.location.origin}${url}`).then(() => message.success('已复制'));
+  void copyUrl;
 
   const columns = [
     { title: 'ID', dataIndex: 'id', width: 60 },

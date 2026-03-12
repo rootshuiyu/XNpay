@@ -28,7 +28,7 @@ export default function SystemConfig() {
   return (
     <Card title="后台配置管理" loading={loading}>
       <Form form={form} layout="vertical" onFinish={onFinish} style={{ maxWidth: 600 }}>
-        <Divider orientation="left">基础配置</Divider>
+        <Divider>基础配置</Divider>
         <Form.Item name="site_name" label="站点名称">
           <Input placeholder="如: 犀牛支付" />
         </Form.Item>
@@ -39,7 +39,7 @@ export default function SystemConfig() {
           <Input placeholder="版权信息等" />
         </Form.Item>
 
-        <Divider orientation="left">通知配置</Divider>
+        <Divider>通知配置</Divider>
         <Form.Item name="notify_email" label="通知邮箱">
           <Input placeholder="接收通知的邮箱" />
         </Form.Item>
@@ -47,7 +47,7 @@ export default function SystemConfig() {
           <Input placeholder="通知回调地址" />
         </Form.Item>
 
-        <Divider orientation="left">安全设置</Divider>
+        <Divider>安全设置</Divider>
         <Form.Item name="login_max_attempts" label="最大登录尝试次数">
           <Input placeholder="如: 5" />
         </Form.Item>

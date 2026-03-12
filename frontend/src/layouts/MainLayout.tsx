@@ -81,7 +81,7 @@ export default function MainLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, setAuth, logout, token } = useAuthStore();
-  const { token: themeToken } = theme.useToken();
+  void theme.useToken();
 
   useEffect(() => {
     if (!token) {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Card, Col, Row, Statistic, Table, Tag } from 'antd';
+import { Card, Col, Row, Table, Tag } from 'antd';
 import {
   ShoppingCartOutlined,
   DollarOutlined,

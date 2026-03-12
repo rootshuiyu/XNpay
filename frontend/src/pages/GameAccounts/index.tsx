@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Card, Table, Button, Modal, Form, Input, Select, Space,
-  Popconfirm, Tag, message, Upload, Tabs,
+  Popconfirm, Tag, message,
 } from 'antd';
 import {
   EditOutlined, DeleteOutlined, PlusOutlined,
