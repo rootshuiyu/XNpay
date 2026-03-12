@@ -49,7 +49,7 @@ export default function BotManage() {
 
   const fetchStatus = async () => {
     try {
-      const res = (await getBotStatus()) as ApiRes<BotStatus>;
+      const res = (await getBotStatus()) as unknown as ApiRes<BotStatus>;
       if (res?.code === 0 && res?.data) setStatus(res.data);
     } catch { /* ignore */ }
   };
@@ -60,8 +60,8 @@ export default function BotManage() {
         getAccounts({ page: 1, size: 1 }),
         getAccounts({ page: 1, size: 1, status: 'available' }),
       ]);
-      const all = allRes as ApiRes<{ total?: number }>;
-      const avail = availRes as ApiRes<{ total?: number }>;
+      const all = allRes as unknown as ApiRes<{ total?: number }>;
+      const avail = availRes as unknown as ApiRes<{ total?: number }>;
       if (all?.code === 0 && all?.data?.total != null) setAccountsTotalFallback(all.data.total);
       if (avail?.code === 0 && avail?.data?.total != null) setAccountsAvailableFallback(avail.data.total);
     } catch { /* ignore */ }
@@ -69,7 +69,7 @@ export default function BotManage() {
 
   const fetchSessions = async (page = 1) => {
     try {
-      const res = (await getBotSessions({ page, size: 10 })) as ApiRes<{ list?: any[]; total?: number }>;
+      const res = (await getBotSessions({ page, size: 10 })) as unknown as ApiRes<{ list?: any[]; total?: number }>;
       if (res?.code === 0 && res?.data) {
         setSessions(res.data.list || []);
         setSessionsTotal(res.data.total ?? 0);
@@ -79,7 +79,7 @@ export default function BotManage() {
 
   const fetchProxies = async () => {
     try {
-      const res = (await getBotProxies()) as ApiRes<{ proxies?: any[]; enabled?: boolean }>;
+      const res = (await getBotProxies()) as unknown as ApiRes<{ proxies?: any[]; enabled?: boolean }>;
       if (res?.code === 0 && res?.data) {
         setProxies(res.data.proxies || []);
         setProxyEnabled(res.data.enabled || false);
@@ -89,7 +89,7 @@ export default function BotManage() {
 
   const fetchOrders = async (page = 1, botStatus = '') => {
     try {
-      const res = (await getBotOrders({ page, size: 10, bot_status: botStatus })) as ApiRes<{ list?: any[]; total?: number }>;
+      const res = (await getBotOrders({ page, size: 10, bot_status: botStatus })) as unknown as ApiRes<{ list?: any[]; total?: number }>;
       if (res?.code === 0 && res?.data) {
         setOrders(res.data.list || []);
         setOrdersTotal(res.data.total ?? 0);
