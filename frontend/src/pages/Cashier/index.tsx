@@ -30,7 +30,10 @@ export default function Cashier() {
 
   useEffect(() => {
     fetchData();
-    getAccounts({ page: 1, size: 100, status: 1 }).then((res: any) => setAccounts(res.data.list || []));
+    getAccounts({ page: 1, size: 500 }).then((res: any) => {
+      const list = res?.data?.list ?? [];
+      setAccounts(Array.isArray(list) ? list : []);
+    }).catch(() => setAccounts([]));
   }, [page]);
 
   const handleSubmit = async () => {
