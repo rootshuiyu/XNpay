@@ -1,40 +1,13 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-// @ts-ignore
-import obfuscatorPlugin from 'vite-plugin-obfuscator'
-
-const isProduction = process.env.NODE_ENV === 'production'
 
 export default defineConfig({
-  plugins: [
-    react(),
-    ...(isProduction ? [obfuscatorPlugin({
-      options: {
-        compact: true,
-        controlFlowFlattening: true,
-        controlFlowFlatteningThreshold: 0.5,
-        deadCodeInjection: true,
-        deadCodeInjectionThreshold: 0.2,
-        identifierNamesGenerator: 'hexadecimal',
-        renameGlobals: false,
-        selfDefending: true,
-        stringArray: true,
-        stringArrayEncoding: ['base64'],
-        stringArrayThreshold: 0.5,
-        transformObjectKeys: true,
-        unicodeEscapeSequence: false,
-        debugProtection: true,
-        debugProtectionInterval: 2000,
-        disableConsoleOutput: true,
-      },
-    })] : []),
-  ],
+  plugins: [react()],
   build: {
     sourcemap: false,
-    minify: 'terser' as const,
+    minify: 'terser',
     rollupOptions: {
       output: {
-        manualChunks: undefined,
         chunkFileNames: 'assets/[hash].js',
         entryFileNames: 'assets/[hash].js',
         assetFileNames: 'assets/[hash].[ext]',
