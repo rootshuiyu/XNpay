@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card, Row, Col, Statistic, Button, Switch, Table, Tag, Space, Modal, Form, Input, Select, message, Tabs, Popconfirm } from 'antd';
-import { RobotOutlined, CloudServerOutlined, SyncOutlined, PlayCircleOutlined, PauseCircleOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { RobotOutlined, SyncOutlined, PlayCircleOutlined, PauseCircleOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import {
   getBotStatus, toggleBot, getBotSessions, clearBotSession,
   getBotProxies, addBotProxy, removeBotProxy, toggleBotProxy,
