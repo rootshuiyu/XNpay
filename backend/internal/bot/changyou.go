@@ -244,17 +244,22 @@ func (p *ChangyouPlatform) CreateOrder(session *Session, amount float64) (*GameO
 		return nil, fmt.Errorf("充值 session 已失效，需要重新登录")
 	}
 
-	// 从 tlBankInit.do 响应中提取 gameType 和 chnl（如果有）
-	// 否则使用默认值
+	// 从 tlBankInit.do 响应中提取 gameType 和 chnl（页面已加载）
 	gameTypeInit := extractHiddenField(initHTML2, "cardOrders.gameType")
 	chnlInit := extractHiddenField(initHTML2, "cardOrders.chnl")
 	if gameTypeInit == "" {
+		// 从页面中的 sidebar 链接提取 gameType（备用）
 		gameTypeInit = "5073"
 	}
 	if chnlInit == "" {
 		chnlInit = "235"
 	}
+	log.Printf("[BOT-CHANGYOU] Using gameType=%s, chnl=%s, cardCount=%d, orderCount=%d",
+		gameTypeInit, chnlInit, cardCount, orderCount)
 
+	// 步骤2: POST 到 tlBankInit.do (form action="" = 提交回同一URL) 提交充值参数
+	// 这会返回含 cardOrders.id 的订单确认页
+	initPostURL := fmt.Sprintf("%s/tl/tlBankInit.do?chnlType=alipay", p.BaseURL)
 	formData := url.Values{
 		"cardOrders.gameType":  {gameTypeInit},
 		"cardOrders.chnl":      {chnlInit},
@@ -263,31 +268,64 @@ func (p *ChangyouPlatform) CreateOrder(session *Session, amount float64) (*GameO
 		"orderCount":           {fmt.Sprintf("%d", orderCount)},
 	}
 
-	confirmURL := fmt.Sprintf("%s/tl/confirmCardOrders.do", p.BaseURL)
-	req, err := http.NewRequest("POST", confirmURL, strings.NewReader(formData.Encode()))
+	reqPost, err := http.NewRequest("POST", initPostURL, strings.NewReader(formData.Encode()))
 	if err != nil {
-		return nil, fmt.Errorf("构建下单请求失败: %w", err)
+		return nil, fmt.Errorf("构建下单POST请求失败: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("User-Agent", session.UserAgent)
-	req.Header.Set("Referer", fmt.Sprintf("%s/tl/tlBankInit.do?chnlType=alipay", p.BaseURL))
-	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-	req.Header.Set("Origin", p.BaseURL)
+	reqPost.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reqPost.Header.Set("User-Agent", session.UserAgent)
+	reqPost.Header.Set("Referer", initPostURL)
+	reqPost.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+	reqPost.Header.Set("Origin", p.BaseURL)
 
-	resp, err := client.Do(req)
+	respPost, err := client.Do(reqPost)
 	if err != nil {
-		return nil, fmt.Errorf("下单请求失败: %w", err)
+		return nil, fmt.Errorf("提交下单POST失败: %w", err)
 	}
-	defer resp.Body.Close()
+	defer respPost.Body.Close()
+	postBody, _ := io.ReadAll(respPost.Body)
+	postHTML := string(postBody)
 
-	body, _ := io.ReadAll(resp.Body)
-	html := string(body)
+	log.Printf("[BOT-CHANGYOU] tlBankInit POST response: status=%d, body_len=%d, url=%s",
+		respPost.StatusCode, len(postHTML), respPost.Request.URL.String())
+	log.Printf("[BOT-CHANGYOU] tlBankInit POST body preview: %s", truncate(postHTML, 1500))
 
-	log.Printf("[BOT-CHANGYOU] confirmCardOrders response: status=%d, body_len=%d, url=%s",
-		resp.StatusCode, len(html), resp.Request.URL.String())
-	log.Printf("[BOT-CHANGYOU] confirmCardOrders body preview: %s", truncate(html, 1200))
+	// 先尝试从 tlBankInit POST 结果中提取订单ID
+	var html string
+	orderID := extractHiddenField(postHTML, "cardOrders.id")
 
-	orderID := extractHiddenField(html, "cardOrders.id")
+	if orderID != "" {
+		// tlBankInit POST 直接返回了确认页（含 cardOrders.id）
+		html = postHTML
+		log.Printf("[BOT-CHANGYOU] Order ID found in tlBankInit POST response: %s", orderID)
+	} else {
+		// tlBankInit POST 返回了中间页，需要再 POST 到 confirmCardOrders.do
+		log.Printf("[BOT-CHANGYOU] No order ID in tlBankInit POST, trying confirmCardOrders.do")
+		confirmURL := fmt.Sprintf("%s/tl/confirmCardOrders.do", p.BaseURL)
+		req2, err2 := http.NewRequest("POST", confirmURL, strings.NewReader(formData.Encode()))
+		if err2 != nil {
+			return nil, fmt.Errorf("构建 confirmCardOrders 请求失败: %w", err2)
+		}
+		req2.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req2.Header.Set("User-Agent", session.UserAgent)
+		req2.Header.Set("Referer", initPostURL)
+		req2.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+		req2.Header.Set("Origin", p.BaseURL)
+
+		resp2, err2 := client.Do(req2)
+		if err2 != nil {
+			return nil, fmt.Errorf("confirmCardOrders 请求失败: %w", err2)
+		}
+		defer resp2.Body.Close()
+		body2, _ := io.ReadAll(resp2.Body)
+		html = string(body2)
+		orderID = extractHiddenField(html, "cardOrders.id")
+
+		log.Printf("[BOT-CHANGYOU] confirmCardOrders response: status=%d, body_len=%d, url=%s",
+			resp2.StatusCode, len(html), resp2.Request.URL.String())
+		log.Printf("[BOT-CHANGYOU] confirmCardOrders body preview: %s", truncate(html, 1200))
+	}
+
 	spsn := extractHiddenField(html, "cardOrders.spsn")
 	sign := extractHiddenField(html, "cardOrders.sign")
 	cash := extractHiddenField(html, "cardOrders.cash")
@@ -299,7 +337,8 @@ func (p *ChangyouPlatform) CreateOrder(session *Session, amount float64) (*GameO
 	orderCountInfo := extractHiddenField(html, "orderCountInfo")
 
 	if orderID == "" {
-		return nil, fmt.Errorf("下单失败，未获取到订单ID，响应长度: %d，预览: %s", len(html), truncate(html, 500))
+		return nil, fmt.Errorf("下单失败，未获取到订单ID\ntlBankInit POST(%d字节): %s\nconfirmCardOrders(%d字节): %s",
+			len(postHTML), truncate(postHTML, 300), len(html), truncate(html, 300))
 	}
 
 	// !!!关键修复：下单后更新 session.Cookies，保存服务端 session 状态
