@@ -31,6 +31,7 @@ export interface GameChannel {
   description: string;
   fee_rate: number;
   status: number;
+  maintenance_note?: string;
   config_json: string;
   created_at: string;
 }
@@ -75,18 +76,50 @@ export interface GameAccount {
 
 export interface PaymentOrder {
   id: number;
+  merchant_id?: number;
   order_no: string;
+  out_trade_no?: string;
   account_id: number;
   channel_id: number;
   amount: number;
   actual_amount: number;
   status: string;
   notify_url: string;
+  notify_status?: string;
+  notify_count?: number;
   payer_info: string;
+  expire_at?: string | null;
+  closed_at?: string | null;
   paid_at: string | null;
   created_at: string;
   account?: GameAccount;
   channel?: GameChannel;
+}
+
+export interface OperationLog {
+  id: number;
+  actor_type: string;
+  actor_id: number;
+  actor_name: string;
+  action: string;
+  resource: string;
+  resource_id: string;
+  detail: string;
+  ip: string;
+  user_agent: string;
+  created_at: string;
+}
+
+export interface LoginLog {
+  id: number;
+  actor_type: string;
+  actor_id: number;
+  username: string;
+  success: boolean;
+  reason: string;
+  ip: string;
+  user_agent: string;
+  created_at: string;
 }
 
 export interface CommissionRecord {

@@ -35,6 +35,8 @@ export const createMerchantAccount = (data: any) => merchantRequest.post('/accou
 export const batchImportMerchantAccounts = (data: any) => merchantRequest.post('/accounts/batch', data);
 
 export const getMerchantOrders = (params: any) => merchantRequest.get('/orders', { params });
+export const exportMerchantOrders = (params?: any) =>
+  merchantRequest.get('/orders/export', { params, responseType: 'blob' });
 
 export const getMerchantSubMerchants = (params: any) => merchantRequest.get('/sub-merchants', { params });
 export const createMerchantSub = (data: any) => merchantRequest.post('/sub-merchants', data);

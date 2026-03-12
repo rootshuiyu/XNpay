@@ -17,6 +17,9 @@ merchantRequest.interceptors.request.use((config) => {
 
 merchantRequest.interceptors.response.use(
   (response) => {
+    if (response.config.responseType === 'blob') {
+      return response;
+    }
     const { data } = response;
     if (data.code !== 0) {
       message.error(data.message || '请求失败');

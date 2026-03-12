@@ -19,17 +19,20 @@ type MerchantLoginRequest struct {
 func MerchantLogin(c *gin.Context) {
 	var req MerchantLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		recordLoginLog(c, "merchant", 0, "", false, "invalid_payload")
 		pkg.Fail(c, 400, "请输入用户名和密码")
 		return
 	}
 
 	var merchant model.Merchant
 	if err := model.DB.Where("username = ? AND status = 1", req.Username).First(&merchant).Error; err != nil {
+		recordLoginLog(c, "merchant", 0, req.Username, false, "user_not_found")
 		pkg.Fail(c, 401, "用户名或密码错误")
 		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(merchant.PasswordHash), []byte(req.Password)); err != nil {
+		recordLoginLog(c, "merchant", merchant.ID, req.Username, false, "password_mismatch")
 		pkg.Fail(c, 401, "用户名或密码错误")
 		return
 	}
@@ -39,6 +42,8 @@ func MerchantLogin(c *gin.Context) {
 		pkg.Fail(c, 500, "生成令牌失败")
 		return
 	}
+
+	recordLoginLog(c, "merchant", merchant.ID, merchant.Username, true, "")
 
 	pkg.Success(c, gin.H{
 		"token": token,
@@ -105,6 +110,7 @@ func MerchantRegister(c *gin.Context) {
 
 	merchant.Path = fmt.Sprintf("%s/%d", parent.Path, merchant.ID)
 	model.DB.Save(&merchant)
+	recordOperationLog(c, "merchant.register", "merchant", merchant.ID, gin.H{"username": merchant.Username, "parent_id": parent.ID})
 
 	pkg.Success(c, gin.H{"message": "注册成功", "username": merchant.Username})
 }
@@ -152,5 +158,6 @@ func MerchantChangePassword(c *gin.Context) {
 
 	hash, _ := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
 	model.DB.Model(&merchant).Update("password_hash", string(hash))
+	recordOperationLog(c, "merchant.change_password", "merchant", merchant.ID, gin.H{"username": merchant.Username})
 	pkg.Success(c, nil)
 }

@@ -22,17 +22,20 @@ type LoginResponse struct {
 func Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		recordLoginLog(c, "admin", 0, "", false, "invalid_payload")
 		pkg.Fail(c, 400, "请输入用户名和密码")
 		return
 	}
 
 	var admin model.Admin
 	if err := model.DB.Where("username = ? AND status = 1", req.Username).First(&admin).Error; err != nil {
+		recordLoginLog(c, "admin", 0, req.Username, false, "user_not_found")
 		pkg.Fail(c, 401, "用户名或密码错误")
 		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(admin.PasswordHash), []byte(req.Password)); err != nil {
+		recordLoginLog(c, "admin", admin.ID, req.Username, false, "password_mismatch")
 		pkg.Fail(c, 401, "用户名或密码错误")
 		return
 	}
@@ -42,6 +45,8 @@ func Login(c *gin.Context) {
 		pkg.Fail(c, 500, "生成令牌失败")
 		return
 	}
+
+	recordLoginLog(c, "admin", admin.ID, admin.Username, true, "")
 
 	pkg.Success(c, LoginResponse{
 		Token:    token,
@@ -91,5 +96,6 @@ func ChangePassword(c *gin.Context) {
 
 	hash, _ := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
 	model.DB.Model(&admin).Update("password_hash", string(hash))
+	recordOperationLog(c, "auth.change_password", "admin", admin.ID, gin.H{"username": admin.Username})
 	pkg.Success(c, nil)
 }

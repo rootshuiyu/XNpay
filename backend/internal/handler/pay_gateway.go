@@ -33,9 +33,21 @@ func PayCreateOrder(c *gin.Context) {
 	}
 
 	var gameChannel model.GameChannel
-	if err := model.DB.Where("channel_code = ? AND status = 1", req.ChannelCode).
+	if err := model.DB.Where("channel_code = ?", req.ChannelCode).
 		First(&gameChannel).Error; err != nil {
-		c.JSON(http.StatusOK, gin.H{"code": 401, "message": "无效的channel_code或通道已停用"})
+		c.JSON(http.StatusOK, gin.H{"code": 401, "message": "无效的channel_code"})
+		return
+	}
+	if gameChannel.Status == 0 {
+		c.JSON(http.StatusOK, gin.H{"code": 401, "message": "通道已停用"})
+		return
+	}
+	if gameChannel.Status == 2 {
+		notice := gameChannel.MaintenanceNote
+		if notice == "" {
+			notice = model.GetConfigValue(model.ConfigMaintenanceNotice, "当前通道维护中，请稍后再试")
+		}
+		c.JSON(http.StatusOK, gin.H{"code": 400, "message": notice})
 		return
 	}
 
@@ -89,6 +101,7 @@ func PayCreateOrder(c *gin.Context) {
 				"cashier_url": cashierURL,
 				"amount":      existing.Amount,
 				"status":      existing.Status,
+				"expire_at":   existing.ExpireAt,
 			},
 		})
 		return
@@ -111,6 +124,7 @@ func PayCreateOrder(c *gin.Context) {
 		NotifyURL:    req.NotifyURL,
 		ReturnURL:    req.ReturnURL,
 		NotifyStatus: "pending",
+		ExpireAt:     func() *time.Time { t := time.Now().Add(getOrderTimeoutDuration()); return &t }(),
 	}
 
 	if err := model.DB.Create(&order).Error; err != nil {
@@ -136,6 +150,7 @@ func PayCreateOrder(c *gin.Context) {
 			"cashier_url": cashierURL,
 			"amount":      amount,
 			"status":      "pending",
+			"expire_at":   order.ExpireAt,
 		},
 	})
 }
@@ -190,6 +205,9 @@ func PayQueryOrder(c *gin.Context) {
 			"status":         order.Status,
 			"paid_at":        order.PaidAt,
 			"channel_trade_no": order.ChannelTradeNo,
+			"notify_status":  order.NotifyStatus,
+			"notify_count":   order.NotifyCount,
+			"expire_at":      order.ExpireAt,
 		},
 	})
 }
@@ -236,6 +254,8 @@ func CashierGetOrder(c *gin.Context) {
 			"game_icon":    gameIcon,
 			"account_info": accountInfo,
 			"created_at":   order.CreatedAt,
+			"expire_at":    order.ExpireAt,
+			"notify_status": order.NotifyStatus,
 		},
 	})
 }

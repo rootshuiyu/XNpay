@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  Card, Table, Button, Modal, Form, Input, InputNumber, Select, Switch,
+  Card, Table, Button, Modal, Form, Input, InputNumber, Select,
   Space, Popconfirm, message, Tag, Row, Col, Statistic, Progress, Segmented,
 } from 'antd';
 import {
@@ -10,7 +10,7 @@ import {
 } from '@ant-design/icons';
 import {
   getChannels, getChannelStats, getChannelCards,
-  createChannel, updateChannel, deleteChannel, toggleChannelStatus,
+  createChannel, updateChannel, deleteChannel,
 } from '../../api/gameChannel';
 import type { GameChannel, ChannelCardItem } from '../../types';
 
@@ -69,7 +69,6 @@ export default function GameChannels() {
 
   const handleSubmit = async () => {
     const values = await form.validateFields();
-    values.status = values.status ? 1 : 0;
     if (editingId) {
       await updateChannel(editingId, values);
       message.success('更新成功');
@@ -87,7 +86,7 @@ export default function GameChannels() {
 
   const handleEdit = (record: GameChannel) => {
     setEditingId(record.id);
-    form.setFieldsValue({ ...record, status: record.status === 1 });
+    form.setFieldsValue(record);
     setModalOpen(true);
   };
 
@@ -96,12 +95,6 @@ export default function GameChannels() {
     message.success('删除成功');
     fetchData();
     fetchStats();
-    fetchCards();
-  };
-
-  const handleToggle = async (id: number) => {
-    await toggleChannelStatus(id);
-    fetchData();
     fetchCards();
   };
 
@@ -128,8 +121,10 @@ export default function GameChannels() {
     { title: '费率', dataIndex: 'fee_rate', render: (v: number) => `${(v * 100).toFixed(2)}%` },
     {
       title: '状态', dataIndex: 'status',
-      render: (v: number, record: GameChannel) => (
-        <Switch checked={v === 1} onChange={() => handleToggle(record.id)} checkedChildren="启用" unCheckedChildren="停用" />
+      render: (v: number) => (
+        <Tag color={v === 1 ? 'green' : v === 2 ? 'gold' : 'red'}>
+          {v === 1 ? '启用' : v === 2 ? '维护中' : '停用'}
+        </Tag>
       ),
     },
     { title: '创建时间', dataIndex: 'created_at', width: 180, render: (v: string) => v?.replace('T', ' ').substring(0, 19) },
@@ -221,8 +216,8 @@ export default function GameChannels() {
                       <div style={{ fontWeight: 600, fontSize: 16 }}>{card.name}</div>
                       <div style={{ color: '#999', fontSize: 12 }}>{card.channel_code}</div>
                     </div>
-                    <Tag color={card.status === 1 ? 'green' : 'red'}>
-                      {card.status === 1 ? '启用' : '停用'}
+                    <Tag color={card.status === 1 ? 'green' : card.status === 2 ? 'gold' : 'red'}>
+                      {card.status === 1 ? '启用' : card.status === 2 ? '维护中' : '停用'}
                     </Tag>
                   </div>
 
@@ -280,7 +275,7 @@ export default function GameChannels() {
         destroyOnClose
         width={560}
       >
-        <Form form={form} layout="vertical" initialValues={{ status: true, fee_rate: 0, min_amount: 0, max_amount: 0 }}>
+        <Form form={form} layout="vertical" initialValues={{ status: 1, fee_rate: 0, min_amount: 0, max_amount: 0 }}>
           <Form.Item name="name" label="游戏名称" rules={[{ required: true }]}>
             <Input placeholder="如: 王者荣耀" />
           </Form.Item>
@@ -316,8 +311,15 @@ export default function GameChannels() {
           <Form.Item name="fee_rate" label="费率">
             <InputNumber min={0} max={1} step={0.001} style={{ width: '100%' }} placeholder="如0.006表示0.6%" />
           </Form.Item>
-          <Form.Item name="status" label="状态" valuePropName="checked">
-            <Switch checkedChildren="启用" unCheckedChildren="停用" />
+          <Form.Item name="status" label="状态">
+            <Select options={[
+              { value: 1, label: '启用' },
+              { value: 0, label: '停用' },
+              { value: 2, label: '维护中' },
+            ]} />
+          </Form.Item>
+          <Form.Item name="maintenance_note" label="维护说明">
+            <Input.TextArea rows={2} placeholder="维护状态下返回给商户的提示文案" />
           </Form.Item>
           <Form.Item name="config_json" label="配置信息(JSON/密钥)">
             <Input.TextArea rows={2} placeholder='签名密钥或JSON配置' />

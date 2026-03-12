@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"xinipay/internal/config"
+	"xinipay/internal/handler"
 	"xinipay/internal/license"
 	"xinipay/internal/model"
 	"xinipay/internal/router"
@@ -34,6 +35,7 @@ func main() {
 	}
 
 	model.InitDB()
+	handler.StartBackgroundJobs()
 
 	r := router.SetupRouter()
 

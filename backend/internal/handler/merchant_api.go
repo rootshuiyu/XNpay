@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"encoding/csv"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -102,6 +104,7 @@ func MerchantCreateChannel(c *gin.Context) {
 		pkg.Fail(c, 500, "创建渠道失败")
 		return
 	}
+	recordOperationLog(c, "merchant.channel_create", "game_channel", channel.ID, gin.H{"name": channel.Name, "channel_code": channel.ChannelCode})
 	pkg.Success(c, channel)
 }
 
@@ -196,6 +199,7 @@ func MerchantCreateAccount(c *gin.Context) {
 		pkg.Fail(c, 500, "创建账号失败")
 		return
 	}
+	recordOperationLog(c, "merchant.account_create", "game_account", account.ID, gin.H{"channel_id": account.ChannelID, "account_name": account.AccountName})
 	pkg.Success(c, account)
 }
 
@@ -257,6 +261,7 @@ func MerchantBatchImport(c *gin.Context) {
 			created++
 		}
 	}
+	recordOperationLog(c, "merchant.account_batch_import", "game_account", req.ChannelID, gin.H{"total": len(items), "created": created})
 	pkg.Success(c, gin.H{"total": len(items), "created": created})
 }
 
@@ -277,6 +282,48 @@ func MerchantGetOrders(c *gin.Context) {
 	var orders []model.PaymentOrder
 	query.Preload("Channel").Order("id DESC").Offset((page - 1) * size).Limit(size).Find(&orders)
 	pkg.SuccessWithPage(c, orders, total, page, size)
+}
+
+func MerchantExportOrders(c *gin.Context) {
+	mid := getMerchantID(c)
+	status := c.Query("status")
+
+	query := model.DB.Model(&model.PaymentOrder{}).Where("merchant_id = ?", mid).Preload("Channel")
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+
+	var orders []model.PaymentOrder
+	query.Order("id DESC").Find(&orders)
+
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=merchant_orders_%s.csv", time.Now().Format("20060102150405")))
+	c.Writer.Write([]byte{0xEF, 0xBB, 0xBF})
+
+	writer := csv.NewWriter(c.Writer)
+	writer.Write([]string{"订单号", "通道", "金额", "实际金额", "状态", "回调状态", "创建时间", "支付时间"})
+	for _, o := range orders {
+		channelName := ""
+		if o.Channel != nil {
+			channelName = o.Channel.Name
+		}
+		paidAt := ""
+		if o.PaidAt != nil {
+			paidAt = o.PaidAt.Format("2006-01-02 15:04:05")
+		}
+		writer.Write([]string{
+			o.OrderNo,
+			channelName,
+			fmt.Sprintf("%.2f", o.Amount),
+			fmt.Sprintf("%.2f", o.ActualAmount),
+			o.Status,
+			o.NotifyStatus,
+			o.CreatedAt.Format("2006-01-02 15:04:05"),
+			paidAt,
+		})
+	}
+	writer.Flush()
+	recordOperationLog(c, "merchant.order_export", "payment_order", "merchant", gin.H{"merchant_id": mid, "count": len(orders)})
 }
 
 func MerchantGetSubMerchants(c *gin.Context) {
@@ -373,6 +420,7 @@ func MerchantCreateSub(c *gin.Context) {
 
 	sub.Path = parent.Path + "/" + strconv.Itoa(int(sub.ID))
 	model.DB.Save(&sub)
+	recordOperationLog(c, "merchant.sub_create", "merchant", sub.ID, gin.H{"username": sub.Username, "parent_id": mid})
 	pkg.Success(c, sub)
 }
 
@@ -402,6 +450,7 @@ func MerchantSetSubRate(c *gin.Context) {
 	}
 
 	model.DB.Model(&sub).Update("fee_rate", req.FeeRate)
+	recordOperationLog(c, "merchant.sub_rate_update", "merchant", sub.ID, req)
 	pkg.Success(c, nil)
 }
 
@@ -416,6 +465,7 @@ func MerchantRefreshInviteCode(c *gin.Context) {
 	mid := getMerchantID(c)
 	newCode := model.GenerateInviteCode()
 	model.DB.Model(&model.Merchant{}).Where("id = ?", mid).Update("invite_code", newCode)
+	recordOperationLog(c, "merchant.invite_refresh", "merchant", mid, gin.H{"invite_code": newCode})
 	pkg.Success(c, gin.H{"invite_code": newCode})
 }
 

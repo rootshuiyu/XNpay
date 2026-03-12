@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Table, Tag, Select } from 'antd';
-import { getMerchantOrders } from '../../api/merchant';
+import { Button, Select, Space, Table, Tag } from 'antd';
+import { DownloadOutlined } from '@ant-design/icons';
+import { exportMerchantOrders, getMerchantOrders } from '../../api/merchant';
 
 const statusMap: Record<string, { color: string; text: string }> = {
   pending: { color: 'processing', text: '待支付' },
@@ -26,6 +27,17 @@ export default function MerchantOrders() {
   useEffect(() => { load(); }, []);
   useEffect(() => { load(1); }, [statusFilter]);
 
+  const exportData = async () => {
+    const res: any = await exportMerchantOrders({ status: statusFilter || undefined });
+    const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'merchant-orders.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   const columns = [
     { title: '订单号', dataIndex: 'order_no', width: 200 },
     { title: '金额', dataIndex: 'amount', render: (v: number) => `¥${v.toFixed(2)}` },
@@ -35,6 +47,19 @@ export default function MerchantOrders() {
       title: '状态', dataIndex: 'status',
       render: (v: string) => {
         const s = statusMap[v] || { color: 'default', text: v };
+        return <Tag color={s.color}>{s.text}</Tag>;
+      },
+    },
+    {
+      title: '回调状态',
+      dataIndex: 'notify_status',
+      render: (v: string) => {
+        const map: Record<string, { color: string; text: string }> = {
+          pending: { color: 'processing', text: '待回调' },
+          success: { color: 'success', text: '已回调' },
+          failed: { color: 'error', text: '失败' },
+        };
+        const s = map[v] || { color: 'default', text: v || '-' };
         return <Tag color={s.color}>{s.text}</Tag>;
       },
     },
@@ -49,18 +74,21 @@ export default function MerchantOrders() {
         <p>查看我的所有订单</p>
       </div>
       <div style={{ marginBottom: 16 }}>
-        <Select
-          style={{ width: 160 }}
-          placeholder="状态筛选"
-          allowClear
-          value={statusFilter || undefined}
-          onChange={(v) => setStatusFilter(v || '')}
-          options={[
-            { value: 'pending', label: '待支付' },
-            { value: 'paid', label: '已支付' },
-            { value: 'expired', label: '已过期' },
-          ]}
-        />
+        <Space>
+          <Select
+            style={{ width: 160 }}
+            placeholder="状态筛选"
+            allowClear
+            value={statusFilter || undefined}
+            onChange={(v) => setStatusFilter(v || '')}
+            options={[
+              { value: 'pending', label: '待支付' },
+              { value: 'paid', label: '已支付' },
+              { value: 'expired', label: '已过期' },
+            ]}
+          />
+          <Button type="primary" icon={<DownloadOutlined />} onClick={exportData}>导出订单</Button>
+        </Space>
       </div>
       <Table columns={columns} dataSource={orders} rowKey="id" loading={loading}
         pagination={{ current: page, total, pageSize: 10, onChange: (p) => { setPage(p); load(p); } }}

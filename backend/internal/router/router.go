@@ -70,6 +70,7 @@ func SetupRouter() *gin.Engine {
 				orders.GET("", handler.GetOrders)
 				orders.GET("/stats", handler.GetOrderStats)
 				orders.GET("/export", handler.ExportOrders)
+				orders.POST("/:id/retry-notify", handler.RetryOrderNotify)
 				orders.GET("/:id", handler.GetOrderDetail)
 			}
 
@@ -102,6 +103,20 @@ func SetupRouter() *gin.Engine {
 		{
 			configs.GET("", handler.GetConfigs)
 			configs.PUT("", handler.UpdateConfigs)
+		}
+
+		logs := protected.Group("/logs")
+		logs.Use(middleware.AdminOnly())
+		{
+			logs.GET("/operations", handler.GetOperationLogs)
+			logs.GET("/logins", handler.GetLoginLogs)
+		}
+
+		automation := protected.Group("/automation")
+		automation.Use(middleware.AdminOnly())
+		{
+			automation.GET("/overview", handler.GetAutomationOverview)
+			automation.POST("/run", handler.RunAutomationTasks)
 		}
 
 		merchants := protected.Group("/merchants")
@@ -139,6 +154,7 @@ merchant.Use(middleware.MerchantAuth())
 	merchant.POST("/accounts", handler.MerchantCreateAccount)
 	merchant.POST("/accounts/batch", handler.MerchantBatchImport)
 	merchant.GET("/orders", handler.MerchantGetOrders)
+		merchant.GET("/orders/export", handler.MerchantExportOrders)
 	merchant.GET("/sub-merchants", handler.MerchantGetSubMerchants)
 	merchant.POST("/sub-merchants", handler.MerchantCreateSub)
 	merchant.PUT("/sub-merchants/:id/rate", handler.MerchantSetSubRate)
@@ -149,7 +165,7 @@ merchant.Use(middleware.MerchantAuth())
 
 	pay := r.Group("/pay")
 	{
-		pay.POST("/create", handler.PayCreateOrder)
+		pay.POST("/create", middleware.PayCreateRateLimit(), handler.PayCreateOrder)
 		pay.GET("/query", handler.PayQueryOrder)
 
 		pay.GET("/cashier/:order_no", handler.CashierGetOrder)

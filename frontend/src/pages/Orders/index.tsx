@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Card, Table, Tag, Row, Col, Statistic } from 'antd';
-import { ShoppingCartOutlined, DollarOutlined, ClockCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
-import { getOrders, getOrderStats } from '../../api/order';
+import { Button, Card, message, Popconfirm, Row, Col, Statistic, Table, Tag } from 'antd';
+import { DownloadOutlined, ReloadOutlined, ShoppingCartOutlined, DollarOutlined, ClockCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { retryOrderNotify } from '../../api/automation';
+import { exportOrders, getOrders, getOrderStats } from '../../api/order';
 import type { PaymentOrder } from '../../types';
 
 export default function Orders() {
@@ -32,6 +33,31 @@ export default function Orders() {
     pending: { color: 'orange', text: '待支付' },
     paid: { color: 'green', text: '已支付' },
     failed: { color: 'red', text: '失败' },
+    expired: { color: 'default', text: '已过期' },
+    no_account: { color: 'magenta', text: '无账号' },
+  };
+
+  const notifyStatusMap: Record<string, { color: string; text: string }> = {
+    pending: { color: 'orange', text: '待回调' },
+    success: { color: 'green', text: '已回调' },
+    failed: { color: 'red', text: '回调失败' },
+  };
+
+  const handleExport = async () => {
+    const res: any = await exportOrders();
+    const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'orders.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleRetryNotify = async (id: number) => {
+    await retryOrderNotify(id);
+    message.success('已触发补回调');
+    fetchData();
   };
 
   const columns = [
@@ -44,7 +70,22 @@ export default function Orders() {
       title: '状态', dataIndex: 'status',
       render: (s: string) => <Tag color={statusMap[s]?.color}>{statusMap[s]?.text || s}</Tag>,
     },
+    {
+      title: '回调',
+      dataIndex: 'notify_status',
+      render: (s: string) => <Tag color={notifyStatusMap[s]?.color}>{notifyStatusMap[s]?.text || s || '-'}</Tag>,
+    },
     { title: '创建时间', dataIndex: 'created_at', width: 180, render: (v: string) => v?.replace('T', ' ').substring(0, 19) },
+    {
+      title: '操作',
+      render: (_: any, record: PaymentOrder) => (
+        record.status === 'paid' ? (
+          <Popconfirm title="确认补发回调？" onConfirm={() => handleRetryNotify(record.id)}>
+            <Button type="link">补回调</Button>
+          </Popconfirm>
+        ) : null
+      ),
+    },
   ];
 
   return (
@@ -68,6 +109,10 @@ export default function Orders() {
         </Col>
       </Row>
       <Card className="content-card">
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16, gap: 8 }}>
+          <Button icon={<ReloadOutlined />} onClick={() => fetchData()}>刷新</Button>
+          <Button type="primary" icon={<DownloadOutlined />} onClick={handleExport}>导出订单</Button>
+        </div>
         <Table
           columns={columns}
           dataSource={data}

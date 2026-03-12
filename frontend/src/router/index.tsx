@@ -13,6 +13,11 @@ import Cashier from '../pages/Cashier';
 import SubAdmin from '../pages/SubAdmin';
 import SystemConfig from '../pages/SystemConfig';
 import ApiDoc from '../pages/ApiDoc';
+import OperationEnhancement from '../pages/OperationEnhancement';
+import RiskControl from '../pages/RiskControl';
+import DeliveryEnhancement from '../pages/DeliveryEnhancement';
+import Automation from '../pages/Automation';
+import OperationLogs from '../pages/OperationLogs';
 import CashierPage from '../pages/CashierPage';
 import MerchantManage from '../pages/MerchantManage';
 import MerchantLogin from '../pages/MerchantLogin';
@@ -23,6 +28,7 @@ import MerchantOrders from '../pages/MerchantOrders';
 import MerchantSubMerchants from '../pages/MerchantSubMerchants';
 import MerchantBalance from '../pages/MerchantBalance';
 import MerchantSettings from '../pages/MerchantSettings';
+import MerchantAccessGuide from '../pages/MerchantAccessGuide';
 
 const router = createBrowserRouter([
   {
@@ -48,6 +54,7 @@ const router = createBrowserRouter([
       { path: 'orders', element: <MerchantOrders /> },
       { path: 'sub-merchants', element: <MerchantSubMerchants /> },
       { path: 'balance', element: <MerchantBalance /> },
+      { path: 'access-guide', element: <MerchantAccessGuide /> },
       { path: 'settings', element: <MerchantSettings /> },
     ],
   },
@@ -68,6 +75,11 @@ const router = createBrowserRouter([
       { path: 'sub-admin', element: <SubAdmin /> },
       { path: 'system-config', element: <SystemConfig /> },
       { path: 'api-doc', element: <ApiDoc /> },
+      { path: 'operation-enhancement', element: <OperationEnhancement /> },
+      { path: 'risk-control', element: <RiskControl /> },
+      { path: 'delivery-enhancement', element: <DeliveryEnhancement /> },
+      { path: 'automation', element: <Automation /> },
+      { path: 'operation-logs', element: <OperationLogs /> },
     ],
   },
 ]);

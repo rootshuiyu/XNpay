@@ -14,6 +14,7 @@ type GameChannel struct {
 	Description string    `gorm:"size:500" json:"description"`
 	FeeRate     float64   `gorm:"type:decimal(5,4);default:0" json:"fee_rate"`
 	Status      int       `gorm:"default:1" json:"status"`
+	MaintenanceNote string `gorm:"size:500" json:"maintenance_note"`
 	ConfigJSON  string    `gorm:"type:text" json:"config_json"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`

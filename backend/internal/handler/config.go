@@ -36,11 +36,16 @@ func UpdateConfigs(c *gin.Context) {
 			model.DB.Create(&model.SystemConfig{
 				ConfigKey:   key,
 				ConfigValue: value,
+				Description: model.GetDefaultConfigDescription(key),
 			})
 		} else {
-			model.DB.Model(&existing).Update("config_value", value)
+			model.DB.Model(&existing).Updates(map[string]interface{}{
+				"config_value": value,
+				"description":  model.GetDefaultConfigDescription(key),
+			})
 		}
 	}
 
+	recordOperationLog(c, "config.update", "system_config", "batch", req.Configs)
 	pkg.Success(c, nil)
 }

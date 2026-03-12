@@ -1,5 +1,5 @@
-import { Card, Typography, Table, Tag, Alert, message } from 'antd';
-import { CopyOutlined, ApiOutlined, SendOutlined, SearchOutlined } from '@ant-design/icons';
+import { Card, Typography, Table, Tag, Alert, message, List, Button, Space } from 'antd';
+import { CopyOutlined, ApiOutlined, CheckCircleOutlined, SendOutlined, SearchOutlined } from '@ant-design/icons';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -33,6 +33,13 @@ const SectionCard = ({ icon, title, children }: { icon: React.ReactNode; title: 
 );
 
 export default function ApiDoc() {
+  const quickParams = [
+    { key: '1', label: '支付域名', value: baseUrl },
+    { key: '2', label: '下单接口', value: `${baseUrl}/pay/create` },
+    { key: '3', label: '查单接口', value: `${baseUrl}/pay/query` },
+    { key: '4', label: '收银台规则', value: `${baseUrl}/cashier/{order_no}` },
+  ];
+
   const createCols = [
     { title: '参数', dataIndex: 'name', render: (v: string) => <Text code>{v}</Text> },
     { title: '必填', dataIndex: 'required', render: (v: boolean) => v ? <Tag color="red">是</Tag> : <Tag>否</Tag> },
@@ -92,6 +99,43 @@ export default function ApiDoc() {
         }
       />
 
+      <SectionCard icon={<CopyOutlined />} title="快速参数">
+        <List
+          dataSource={quickParams}
+          renderItem={(item) => (
+            <List.Item
+              actions={[
+                <Button key="copy" size="small" icon={<CopyOutlined />} onClick={() => copyText(item.value)}>
+                  复制
+                </Button>,
+              ]}
+            >
+              <List.Item.Meta title={item.label} description={<Text code>{item.value}</Text>} />
+            </List.Item>
+          )}
+        />
+      </SectionCard>
+
+      <SectionCard icon={<CheckCircleOutlined />} title="对接步骤">
+        <List
+          dataSource={[
+            '在后台创建通道，拿到 channel_code 和签名密钥。',
+            '商户服务端调用 /pay/create 创建订单。',
+            '拿到 cashier_url 后跳转到收银台页面。',
+            '支付成功后平台 POST 到 notify_url。',
+            '商户验签成功后发货并返回 success。',
+          ]}
+          renderItem={(item, index) => (
+            <List.Item>
+              <Space>
+                <Text strong>{index + 1}.</Text>
+                <span>{item}</span>
+              </Space>
+            </List.Item>
+          )}
+        />
+      </SectionCard>
+
       <SectionCard icon={<SendOutlined />} title="下单接口  POST /pay/create">
         <Table columns={createCols} dataSource={createData} pagination={false} size="small" />
         <Title level={5} style={{ marginTop: 16 }}>返回示例</Title>
@@ -114,6 +158,11 @@ export default function ApiDoc() {
         <Paragraph type="secondary" style={{ marginTop: 12 }}>
           收到后验签，处理完返回纯文本 <Text code>success</Text>。未返回会重试 3 次。
         </Paragraph>
+        <Title level={5}>验签提示</Title>
+        <CodeBlock>{`1. 去掉 sign 字段
+2. 其余参数按 key 升序拼接
+3. 末尾拼接 &key=你的密钥
+4. MD5 小写后与回调 sign 比较`}</CodeBlock>
       </SectionCard>
 
       <SectionCard icon={<SearchOutlined />} title="查询订单  GET /pay/query">
@@ -140,6 +189,26 @@ $res = json_decode(file_get_contents(
 ), true);
 
 header('Location: ${baseUrl}' . $res['data']['cashier_url']);`}</CodeBlock>
+      </SectionCard>
+
+      <SectionCard icon={<CheckCircleOutlined />} title="商户接入检查清单">
+        <List
+          dataSource={[
+            '是否由服务端发起下单，而不是前端直调。',
+            '是否保存了 channel_code、密钥、notify_url。',
+            '是否能正确返回纯文本 success。',
+            '是否对回调 sign 做了服务端验签。',
+            '是否能根据 out_trade_no 完成业务发货。',
+          ]}
+          renderItem={(item) => (
+            <List.Item>
+              <Space>
+                <CheckCircleOutlined style={{ color: '#00b894' }} />
+                <span>{item}</span>
+              </Space>
+            </List.Item>
+          )}
+        />
       </SectionCard>
     </div>
   );

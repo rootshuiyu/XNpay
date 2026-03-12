@@ -82,6 +82,7 @@ func CreateAccount(c *gin.Context) {
 		pkg.Fail(c, 500, "创建账号失败")
 		return
 	}
+	recordOperationLog(c, "account.create", "game_account", account.ID, gin.H{"channel_id": account.ChannelID, "account_name": account.AccountName})
 	pkg.Success(c, account)
 }
 
@@ -111,6 +112,7 @@ func UpdateAccount(c *gin.Context) {
 		"remark":       req.Remark,
 	})
 
+	recordOperationLog(c, "account.update", "game_account", account.ID, req)
 	pkg.Success(c, account)
 }
 
@@ -128,6 +130,7 @@ func DeleteAccount(c *gin.Context) {
 		pkg.Fail(c, 500, "删除失败")
 		return
 	}
+	recordOperationLog(c, "account.delete", "game_account", id, nil)
 	pkg.Success(c, nil)
 }
 
@@ -217,4 +220,5 @@ func BatchImportAccounts(c *gin.Context) {
 		"total":   len(items),
 		"created": created,
 	})
+	recordOperationLog(c, "account.batch_import", "game_account", req.ChannelID, gin.H{"total": len(items), "created": created})
 }

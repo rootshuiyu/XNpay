@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Card, Form, Input, Button, message, Divider } from 'antd';
+import { Card, Form, Input, Button, message, Divider, InputNumber, Switch, Row, Col } from 'antd';
 import { SaveOutlined } from '@ant-design/icons';
 import { getConfigs, updateConfigs } from '../../api/config';
 
@@ -11,14 +11,25 @@ export default function SystemConfig() {
   useEffect(() => {
     setLoading(true);
     getConfigs().then((res: any) => {
-      form.setFieldsValue(res.data || {});
+      const data = res.data || {};
+      form.setFieldsValue({
+        ...data,
+        login_max_attempts: Number(data.login_max_attempts || 5),
+        session_timeout: Number(data.session_timeout || 60),
+        order_create_limit: Number(data.order_create_limit || 30),
+        order_create_window_seconds: Number(data.order_create_window_seconds || 60),
+        order_timeout_minutes: Number(data.order_timeout_minutes || 30),
+        auto_task_interval_seconds: Number(data.auto_task_interval_seconds || 60),
+      });
     }).finally(() => setLoading(false));
   }, []);
 
   const onFinish = async (values: any) => {
     setSaving(true);
     try {
-      await updateConfigs({ configs: values });
+      await updateConfigs({
+        configs: Object.fromEntries(Object.entries(values).map(([key, value]) => [key, String(value ?? '')])),
+      });
       message.success('保存成功');
     } finally {
       setSaving(false);
@@ -49,11 +60,52 @@ export default function SystemConfig() {
 
         <Divider>安全设置</Divider>
         <Form.Item name="login_max_attempts" label="最大登录尝试次数">
-          <Input placeholder="如: 5" />
+          <InputNumber min={1} style={{ width: '100%' }} placeholder="如: 5" />
         </Form.Item>
         <Form.Item name="session_timeout" label="会话超时(分钟)">
-          <Input placeholder="如: 60" />
+          <InputNumber min={1} style={{ width: '100%' }} placeholder="如: 60" />
         </Form.Item>
+
+        <Divider>自动化与风控</Divider>
+        <Row gutter={16}>
+          <Col span={12}>
+            <Form.Item name="order_create_limit" label="下单限流次数">
+              <InputNumber min={0} style={{ width: '100%' }} />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item name="order_create_window_seconds" label="限流窗口(秒)">
+              <InputNumber min={1} style={{ width: '100%' }} />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Row gutter={16}>
+          <Col span={12}>
+            <Form.Item name="order_timeout_minutes" label="订单超时(分钟)">
+              <InputNumber min={1} style={{ width: '100%' }} />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item name="auto_task_interval_seconds" label="任务执行间隔(秒)">
+              <InputNumber min={10} style={{ width: '100%' }} />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Form.Item name="maintenance_notice" label="默认维护提示">
+          <Input.TextArea rows={3} placeholder="当前通道维护中，请稍后再试" />
+        </Form.Item>
+        <Row gutter={16}>
+          <Col span={12}>
+            <Form.Item name="auto_release_enabled" label="自动释放账号" valuePropName="checked" getValueProps={(value) => ({ value: value === true || value === 'true' })}>
+              <Switch />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item name="auto_notify_enabled" label="自动补回调" valuePropName="checked" getValueProps={(value) => ({ value: value === true || value === 'true' })}>
+              <Switch />
+            </Form.Item>
+          </Col>
+        </Row>
 
         <Form.Item>
           <Button type="primary" htmlType="submit" loading={saving} icon={<SaveOutlined />}>

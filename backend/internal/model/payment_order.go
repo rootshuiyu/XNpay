@@ -22,6 +22,8 @@ type PaymentOrder struct {
 	PayMethod      string       `gorm:"size:20" json:"pay_method"`
 	QrCode         string       `gorm:"size:500" json:"qr_code"`
 	PayURL         string       `gorm:"size:500" json:"pay_url"`
+	ExpireAt       *time.Time   `json:"expire_at"`
+	ClosedAt       *time.Time   `json:"closed_at"`
 	PaidAt         *time.Time   `json:"paid_at"`
 	CreatedAt      time.Time    `json:"created_at"`
 	UpdatedAt      time.Time    `json:"updated_at"`

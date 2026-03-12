@@ -160,6 +160,7 @@ func AdminCreateMerchant(c *gin.Context) {
 	}
 
 	model.DB.Save(&merchant)
+	recordOperationLog(c, "merchant.create", "merchant", merchant.ID, gin.H{"username": merchant.Username, "parent_id": merchant.ParentID})
 	pkg.Success(c, merchant)
 }
 
@@ -213,6 +214,7 @@ func AdminUpdateMerchant(c *gin.Context) {
 		"fee_rate": req.FeeRate,
 		"status":   req.Status,
 	})
+	recordOperationLog(c, "merchant.update", "merchant", merchant.ID, req)
 	pkg.Success(c, merchant)
 }
 
@@ -229,6 +231,7 @@ func AdminToggleMerchantStatus(c *gin.Context) {
 		newStatus = 0
 	}
 	model.DB.Model(&merchant).Update("status", newStatus)
+	recordOperationLog(c, "merchant.toggle_status", "merchant", merchant.ID, gin.H{"status": newStatus})
 	pkg.Success(c, nil)
 }
 

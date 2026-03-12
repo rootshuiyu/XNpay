@@ -13,6 +13,7 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   SettingOutlined,
+  ApiOutlined,
 } from '@ant-design/icons';
 import useMerchantStore from '../store/useMerchantStore';
 import { getMerchantProfile } from '../api/merchant';
@@ -26,6 +27,7 @@ const menuItems = [
   { key: '/merchant/orders', icon: <FileTextOutlined />, label: '订单记录' },
   { key: '/merchant/sub-merchants', icon: <UsergroupAddOutlined />, label: '下级商户' },
   { key: '/merchant/balance', icon: <WalletOutlined />, label: '余额结算' },
+  { key: '/merchant/access-guide', icon: <ApiOutlined />, label: '接入说明' },
   { key: '/merchant/settings', icon: <SettingOutlined />, label: '个人设置' },
 ];
 
@@ -36,6 +38,7 @@ const breadcrumbMap: Record<string, string> = {
   '/merchant/orders': '订单记录',
   '/merchant/sub-merchants': '下级商户',
   '/merchant/balance': '余额结算',
+  '/merchant/access-guide': '接入说明',
   '/merchant/settings': '个人设置',
 };
 

@@ -44,6 +44,8 @@ func InitDB() {
 		&CashierConfig{},
 		&SubAdmin{},
 		&SystemConfig{},
+		&OperationLog{},
+		&LoginLog{},
 	)
 	if err != nil {
 		log.Fatalf("Failed to auto migrate: %v", err)
@@ -51,6 +53,7 @@ func InitDB() {
 
 	seedAdmin()
 	seedDefaultMerchant()
+	EnsureDefaultConfigs()
 }
 
 func seedDefaultMerchant() {

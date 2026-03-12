@@ -18,6 +18,7 @@ type ChannelRequest struct {
 	Description string  `json:"description"`
 	FeeRate     float64 `json:"fee_rate"`
 	Status      int     `json:"status"`
+	MaintenanceNote string `json:"maintenance_note"`
 	ConfigJSON  string  `json:"config_json"`
 }
 
@@ -141,6 +142,7 @@ func CreateChannel(c *gin.Context) {
 		Description: req.Description,
 		FeeRate:     req.FeeRate,
 		Status:      req.Status,
+		MaintenanceNote: req.MaintenanceNote,
 		ConfigJSON:  req.ConfigJSON,
 	}
 
@@ -148,6 +150,7 @@ func CreateChannel(c *gin.Context) {
 		pkg.Fail(c, 500, "创建渠道失败")
 		return
 	}
+	recordOperationLog(c, "channel.create", "game_channel", channel.ID, channel)
 	pkg.Success(c, channel)
 }
 
@@ -175,9 +178,11 @@ func UpdateChannel(c *gin.Context) {
 		"description":  req.Description,
 		"fee_rate":     req.FeeRate,
 		"status":       req.Status,
+		"maintenance_note": req.MaintenanceNote,
 		"config_json":  req.ConfigJSON,
 	})
 
+	recordOperationLog(c, "channel.update", "game_channel", channel.ID, req)
 	pkg.Success(c, channel)
 }
 
@@ -195,6 +200,7 @@ func DeleteChannel(c *gin.Context) {
 		pkg.Fail(c, 500, "删除失败")
 		return
 	}
+	recordOperationLog(c, "channel.delete", "game_channel", id, nil)
 	pkg.Success(c, nil)
 }
 
@@ -211,5 +217,6 @@ func ToggleChannelStatus(c *gin.Context) {
 		newStatus = 0
 	}
 	model.DB.Model(&channel).Update("status", newStatus)
+	recordOperationLog(c, "channel.toggle_status", "game_channel", channel.ID, gin.H{"status": newStatus})
 	pkg.Success(c, nil)
 }

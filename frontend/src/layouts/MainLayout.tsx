@@ -21,6 +21,11 @@ import {
   DatabaseOutlined,
   ToolOutlined,
   ApiOutlined,
+  SafetyCertificateOutlined,
+  RocketOutlined,
+  ThunderboltOutlined,
+  ProfileOutlined,
+  AuditOutlined,
 } from '@ant-design/icons';
 import useAuthStore from '../store/useAuthStore';
 import { getProfile } from '../api/auth';
@@ -60,6 +65,18 @@ const menuItems = [
       { key: '/system-config', icon: <SettingOutlined />, label: '系统配置' },
     ],
   },
+  {
+    key: 'enhance-group',
+    icon: <SafetyCertificateOutlined />,
+    label: '增强中心',
+    children: [
+      { key: '/operation-enhancement', icon: <RocketOutlined />, label: '运营增强' },
+      { key: '/risk-control', icon: <SafetyCertificateOutlined />, label: '风控中心' },
+      { key: '/delivery-enhancement', icon: <ThunderboltOutlined />, label: '商户接入' },
+      { key: '/automation', icon: <ProfileOutlined />, label: '自动化中心' },
+      { key: '/operation-logs', icon: <AuditOutlined />, label: '操作日志' },
+    ],
+  },
   { key: '/api-doc', icon: <ApiOutlined />, label: 'API 文档' },
 ];
 
@@ -76,6 +93,11 @@ const breadcrumbMap: Record<string, string> = {
   '/sub-admin': '分后台管理',
   '/system-config': '系统配置',
   '/api-doc': 'API 文档',
+  '/operation-enhancement': '运营增强',
+  '/risk-control': '风控中心',
+  '/delivery-enhancement': '商户接入',
+  '/automation': '自动化中心',
+  '/operation-logs': '操作日志',
 };
 
 export default function MainLayout() {
@@ -177,7 +199,7 @@ export default function MainLayout() {
           mode="inline"
           theme="dark"
           selectedKeys={[location.pathname]}
-          defaultOpenKeys={['game-group', 'order-group', 'sys-group']}
+          defaultOpenKeys={['game-group', 'order-group', 'sys-group', 'enhance-group']}
           items={menuItems}
           onClick={({ key }) => {
             if (!key.endsWith('-group')) navigate(key);

@@ -64,6 +64,9 @@ type OrderStats struct {
 	PaidAmount   float64 `json:"paid_amount"`
 	PendingCount int64   `json:"pending_count"`
 	FailedCount  int64   `json:"failed_count"`
+	ExpiredCount int64   `json:"expired_count"`
+	NoAccountCount int64 `json:"no_account_count"`
+	NotifyFailedCount int64 `json:"notify_failed_count"`
 }
 
 func GetOrderStats(c *gin.Context) {
@@ -91,9 +94,12 @@ func GetOrderStats(c *gin.Context) {
 	}
 
 	query2.Where("status = 'paid'").Count(&stats.PaidCount)
-	model.DB.Model(&model.PaymentOrder{}).Where("status = 'paid'").Select("COALESCE(SUM(amount), 0)").Scan(&stats.PaidAmount)
+	query2.Where("status = 'paid'").Select("COALESCE(SUM(amount), 0)").Scan(&stats.PaidAmount)
 	model.DB.Model(&model.PaymentOrder{}).Where("status = 'pending'").Count(&stats.PendingCount)
 	model.DB.Model(&model.PaymentOrder{}).Where("status = 'failed'").Count(&stats.FailedCount)
+	model.DB.Model(&model.PaymentOrder{}).Where("status = 'expired'").Count(&stats.ExpiredCount)
+	model.DB.Model(&model.PaymentOrder{}).Where("status = 'no_account'").Count(&stats.NoAccountCount)
+	model.DB.Model(&model.PaymentOrder{}).Where("status = 'paid' AND notify_status = 'failed'").Count(&stats.NotifyFailedCount)
 
 	pkg.Success(c, stats)
 }
@@ -122,7 +128,7 @@ func ExportOrders(c *gin.Context) {
 	c.Writer.Write([]byte{0xEF, 0xBB, 0xBF})
 
 	writer := csv.NewWriter(c.Writer)
-	writer.Write([]string{"订单号", "渠道", "账号", "金额", "实付金额", "状态", "创建时间"})
+	writer.Write([]string{"订单号", "渠道", "账号", "金额", "实付金额", "状态", "回调状态", "创建时间", "支付时间"})
 
 	for _, o := range orders {
 		channelName := ""
@@ -145,8 +151,11 @@ func ExportOrders(c *gin.Context) {
 			fmt.Sprintf("%.2f", o.Amount),
 			fmt.Sprintf("%.2f", o.ActualAmount),
 			o.Status,
+			o.NotifyStatus,
 			o.CreatedAt.Format("2006-01-02 15:04:05"),
+			paidAt,
 		})
 	}
 	writer.Flush()
+	recordOperationLog(c, "order.export", "payment_order", "batch", gin.H{"count": len(orders), "status": status})
 }
