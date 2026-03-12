@@ -12,6 +12,7 @@ import Commission from '../pages/Commission';
 import Cashier from '../pages/Cashier';
 import SubAdmin from '../pages/SubAdmin';
 import SystemConfig from '../pages/SystemConfig';
+import ApiDoc from '../pages/ApiDoc';
 import CashierPage from '../pages/CashierPage';
 import MerchantManage from '../pages/MerchantManage';
 import MerchantLogin from '../pages/MerchantLogin';
@@ -66,6 +67,7 @@ const router = createBrowserRouter([
       { path: 'merchant-manage', element: <MerchantManage /> },
       { path: 'sub-admin', element: <SubAdmin /> },
       { path: 'system-config', element: <SystemConfig /> },
+      { path: 'api-doc', element: <ApiDoc /> },
     ],
   },
 ]);

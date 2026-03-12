@@ -20,6 +20,7 @@ import {
   ApartmentOutlined,
   DatabaseOutlined,
   ToolOutlined,
+  ApiOutlined,
 } from '@ant-design/icons';
 import useAuthStore from '../store/useAuthStore';
 import { getProfile } from '../api/auth';
@@ -59,6 +60,7 @@ const menuItems = [
       { key: '/system-config', icon: <SettingOutlined />, label: '系统配置' },
     ],
   },
+  { key: '/api-doc', icon: <ApiOutlined />, label: 'API 文档' },
 ];
 
 const breadcrumbMap: Record<string, string> = {
@@ -73,6 +75,7 @@ const breadcrumbMap: Record<string, string> = {
   '/cashier': '收银台',
   '/sub-admin': '分后台管理',
   '/system-config': '系统配置',
+  '/api-doc': 'API 文档',
 };
 
 export default function MainLayout() {
