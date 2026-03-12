@@ -94,14 +94,36 @@ func (p *ChangyouPlatform) Login(account *model.GameAccount, proxy string, ua st
 	loginBody, _ := io.ReadAll(resp2.Body)
 	loginHTML := string(loginBody)
 
-	log.Printf("[BOT-CHANGYOU] Login submit status: %d, final URL: %s, body len: %d",
-		resp2.StatusCode, resp2.Request.URL.String(), len(loginHTML))
+	log.Printf("[BOT-CHANGYOU] Login submit status: %d, final URL: %s, body len: %d, body: %s",
+		resp2.StatusCode, resp2.Request.URL.String(), len(loginHTML), truncate(loginHTML, 300))
 
 	// 检查登录是否失败
 	if strings.Contains(loginHTML, "密码不正确") || strings.Contains(loginHTML, "账号不存在") ||
 		strings.Contains(loginHTML, "帐号或密码") || strings.Contains(loginHTML, "loginToken") ||
 		strings.Contains(loginHTML, "new_login.jsp") {
 		return nil, fmt.Errorf("账号密码错误或登录失败: %s", truncate(loginHTML, 300))
+	}
+
+	// 处理 JS 重定向：auth.changyou.com 成功登录后可能通过 JS 跳转回 s 参数指定的 URL
+	// 需要手动跟随 JS 中的 location.href 或 window.location
+	if strings.Contains(loginHTML, "location.href") || strings.Contains(loginHTML, "window.location") {
+		jsRedirectURL := extractJSRedirectURL(loginHTML)
+		if jsRedirectURL != "" {
+			log.Printf("[BOT-CHANGYOU] Following JS redirect to: %s", jsRedirectURL)
+			reqJS, _ := http.NewRequest("GET", jsRedirectURL, nil)
+			reqJS.Header.Set("User-Agent", ua)
+			reqJS.Header.Set("Referer", "https://auth.changyou.com/login")
+			reqJS.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+			respJS, err := client.Do(reqJS)
+			if err != nil {
+				log.Printf("[BOT-CHANGYOU] JS redirect failed: %v", err)
+			} else {
+				defer respJS.Body.Close()
+				jsBody, _ := io.ReadAll(respJS.Body)
+				log.Printf("[BOT-CHANGYOU] JS redirect result: status=%d, url=%s, len=%d",
+					respJS.StatusCode, respJS.Request.URL.String(), len(jsBody))
+			}
+		}
 	}
 
 	// Step 3: 访问充值初始化页面，建立充值域的 session
@@ -145,6 +167,16 @@ func (p *ChangyouPlatform) Login(account *model.GameAccount, proxy string, ua st
 	return session, nil
 }
 
+// extractJSRedirectURL 从 JS 代码中提取 location.href 的 URL
+func extractJSRedirectURL(html string) string {
+	re := regexp.MustCompile(`(?:location\.href|window\.location)\s*=\s*["']([^"']+)["']`)
+	m := re.FindStringSubmatch(html)
+	if len(m) > 1 {
+		return m[1]
+	}
+	return ""
+}
+
 // extractLoginToken 从登录页 HTML 中提取 loginToken 隐藏字段值
 func extractLoginToken(html string) string {
 	re := regexp.MustCompile(`name="loginToken"\s+value="([^"]+)"`)
@@ -174,8 +206,8 @@ func (p *ChangyouPlatform) CreateOrder(session *Session, amount float64) (*GameO
 
 	baseU, _ := url.Parse(p.BaseURL)
 	jar.SetCookies(baseU, session.Cookies)
-	passportU, _ := url.Parse("https://passport.changyou.com")
-	jar.SetCookies(passportU, session.Cookies)
+	authU2, _ := url.Parse("https://auth.changyou.com")
+	jar.SetCookies(authU2, session.Cookies)
 
 	orderCount := 1
 	pointValue := points
@@ -218,7 +250,7 @@ func (p *ChangyouPlatform) CreateOrder(session *Session, amount float64) (*GameO
 
 	log.Printf("[BOT-CHANGYOU] confirmCardOrders response: status=%d, body_len=%d, url=%s",
 		resp.StatusCode, len(html), resp.Request.URL.String())
-	log.Printf("[BOT-CHANGYOU] confirmCardOrders body preview: %s", truncate(html, 800))
+	log.Printf("[BOT-CHANGYOU] confirmCardOrders body preview: %s", truncate(html, 1200))
 
 	orderID := extractHiddenField(html, "cardOrders.id")
 	spsn := extractHiddenField(html, "cardOrders.spsn")
