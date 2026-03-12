@@ -3,7 +3,9 @@ package handler
 import (
 	"crypto/md5"
 	"fmt"
+	"math/rand"
 	"strconv"
+	"strings"
 	"time"
 	"xinipay/internal/model"
 	"xinipay/pkg"
@@ -89,4 +91,99 @@ func DeleteCashier(c *gin.Context) {
 		return
 	}
 	pkg.Success(c, nil)
+}
+
+// CashierPublicInfo - public endpoint: GET /pay/c/:code
+func CashierPublicInfo(c *gin.Context) {
+	code := c.Param("code")
+	fullURL := "/pay/" + code
+
+	var cashier model.CashierConfig
+	if err := model.DB.Preload("Account").Where("cashier_url = ? AND status = 1", fullURL).First(&cashier).Error; err != nil {
+		pkg.Fail(c, 404, "收款链接不存在或已禁用")
+		return
+	}
+
+	pkg.Success(c, gin.H{
+		"link_code":     code,
+		"title":         cashier.CashierName,
+		"channel_name":  "畅游充值",
+		"min_amount":    10,
+		"max_amount":    3000,
+		"quick_amounts": []int{100, 200, 300, 500, 1000},
+		"source":        "cashier",
+	})
+}
+
+// CashierPublicSubmit - public endpoint: POST /pay/c/:code
+func CashierPublicSubmit(c *gin.Context) {
+	code := c.Param("code")
+	fullURL := "/pay/" + code
+
+	var cashier model.CashierConfig
+	if err := model.DB.Preload("Account").Where("cashier_url = ? AND status = 1", fullURL).First(&cashier).Error; err != nil {
+		pkg.Fail(c, 404, "收款链接不存在或已禁用")
+		return
+	}
+
+	var req struct {
+		Amount    string `json:"amount" binding:"required"`
+		PayMethod string `json:"pay_method"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		pkg.Fail(c, 400, "参数错误: "+err.Error())
+		return
+	}
+
+	// Get client IP
+	clientIP := c.GetHeader("X-Forwarded-For")
+	if clientIP == "" {
+		clientIP = c.GetHeader("X-Real-IP")
+	}
+	if clientIP == "" {
+		clientIP = c.ClientIP()
+	}
+	if idx := strings.Index(clientIP, ","); idx != -1 {
+		clientIP = strings.TrimSpace(clientIP[:idx])
+	}
+
+	outTradeNo := fmt.Sprintf("CL%d%04d", time.Now().UnixNano()/1e6, rand.Intn(10000))
+	expireAt := time.Now().Add(30 * time.Minute)
+
+	order := model.PaymentOrder{
+		OrderNo:      fmt.Sprintf("XN%d%04d", time.Now().UnixNano()/1e6, rand.Intn(10000)),
+		OutTradeNo:   outTradeNo,
+		MerchantID:   0,
+		ChannelID:    0,
+		Amount:       func() float64 { v, _ := strconv.ParseFloat(req.Amount, 64); return v }(),
+		Subject:      cashier.CashierName,
+		Status:       "pending",
+		BotStatus:    "queued",
+		GamePlatform: "changyou",
+		ClientIP:     clientIP,
+		ExpireAt:     &expireAt,
+	}
+
+	// Bind game account
+	if cashier.Account != nil {
+		order.AccountID = cashier.AccountID
+	} else {
+		// Auto-assign available account
+		var account model.GameAccount
+		if err := model.DB.Where("status = 'available' AND platform = 'changyou'").First(&account).Error; err == nil {
+			order.AccountID = account.ID
+		}
+	}
+
+	if err := model.DB.Create(&order).Error; err != nil {
+		pkg.Fail(c, 500, "创建订单失败")
+		return
+	}
+
+	pkg.Success(c, gin.H{
+		"order_no":    order.OrderNo,
+		"cashier_url": "/cashier/" + order.OrderNo,
+		"amount":      order.Amount,
+		"expire_at":   order.ExpireAt,
+	})
 }

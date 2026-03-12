@@ -210,6 +210,10 @@ merchant.Use(middleware.MerchantAuth())
 		// 收款链接（公开，无需签名）
 		pay.GET("/l/:link_code", handler.PayLinkInfo)
 		pay.POST("/l/:link_code", handler.PayLinkSubmit)
+
+		// 收银台配置公开接口（无需签名）
+		pay.GET("/c/:code", handler.CashierPublicInfo)
+		pay.POST("/c/:code", handler.CashierPublicSubmit)
 	}
 
 	return r

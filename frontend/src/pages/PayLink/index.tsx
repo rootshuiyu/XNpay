@@ -53,15 +53,21 @@ export default function PayLinkPage() {
   const [inputError, setInputError] = useState('');
 
   useEffect(() => {
+    // Try payment link first, then cashier config
     axios.get(`/pay/l/${linkCode}`)
       .then(res => {
         if (res.data.code === 0) {
-          setLinkInfo(res.data.data);
+          setLinkInfo({ ...res.data.data, _source: 'link' });
         } else {
-          setError(res.data.message || '链接不存在');
+          return axios.get(`/pay/c/${linkCode}`);
         }
       })
-      .catch(() => setError('网络错误'))
+      .then(res => {
+        if (res && res.data?.code === 0) {
+          setLinkInfo({ ...res.data.data, _source: 'cashier' });
+        }
+      })
+      .catch(() => setError('收款链接不存在或已禁用'))
       .finally(() => setLoading(false));
   }, [linkCode]);
 
@@ -95,13 +101,16 @@ export default function PayLinkPage() {
 
     setSubmitting(true);
     try {
-      const res = await axios.post(`/pay/l/${linkCode}`, {
+      // Use the correct API based on source
+      const apiUrl = (linkInfo as any)?._source === 'cashier'
+        ? `/pay/c/${linkCode}`
+        : `/pay/l/${linkCode}`;
+      const res = await axios.post(apiUrl, {
         amount: amount,
         pay_method: payMethod,
       });
       if (res.data.code === 0) {
         const { cashier_url } = res.data.data;
-        navigate(cashier_url.replace('/cashier/', '/pay/cashier/') || cashier_url);
         window.location.href = cashier_url;
       } else {
         setInputError(res.data.message || '提交失败');
