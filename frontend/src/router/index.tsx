@@ -18,6 +18,7 @@ import RiskControl from '../pages/RiskControl';
 import DeliveryEnhancement from '../pages/DeliveryEnhancement';
 import Automation from '../pages/Automation';
 import OperationLogs from '../pages/OperationLogs';
+import BotManage from '../pages/BotManage';
 import CashierPage from '../pages/CashierPage';
 import MerchantManage from '../pages/MerchantManage';
 import MerchantLogin from '../pages/MerchantLogin';
@@ -80,6 +81,7 @@ const router = createBrowserRouter([
       { path: 'delivery-enhancement', element: <DeliveryEnhancement /> },
       { path: 'automation', element: <Automation /> },
       { path: 'operation-logs', element: <OperationLogs /> },
+      { path: 'bot-manage', element: <BotManage /> },
     ],
   },
 ]);

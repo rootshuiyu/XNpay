@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"xinipay/internal/bot"
 	"xinipay/internal/config"
 	"xinipay/internal/handler"
 	"xinipay/internal/license"
@@ -36,6 +37,7 @@ func main() {
 
 	model.InitDB()
 	handler.StartBackgroundJobs()
+	bot.Bot.Start()
 
 	r := router.SetupRouter()
 

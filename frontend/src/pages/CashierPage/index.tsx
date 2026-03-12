@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 
@@ -18,6 +18,10 @@ interface OrderInfo {
   channel: string;
   game_icon: string;
   account_info: AccountInfo | null;
+  qr_code: string;
+  bot_status: string;
+  pay_method: string;
+  expire_at: string;
 }
 
 export default function CashierPage() {
@@ -28,6 +32,9 @@ export default function CashierPage() {
   const [paid, setPaid] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [copied, setCopied] = useState<string>('');
+  const [countdown, setCountdown] = useState(0);
+  const [qrLoading, setQrLoading] = useState(true);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchOrder = useCallback(async () => {
     try {
@@ -37,6 +44,9 @@ export default function CashierPage() {
         setOrder(data);
         if (data.status === 'paid') {
           setPaid(true);
+        }
+        if (data.qr_code) {
+          setQrLoading(false);
         }
       } else {
         setError(res.data.message || '订单不存在');
@@ -52,16 +62,23 @@ export default function CashierPage() {
 
   useEffect(() => {
     if (paid) return;
-    const timer = setInterval(async () => {
+    pollRef.current = setInterval(async () => {
       try {
         const res = await axios.get(`/pay/cashier/${orderNo}`);
-        if (res.data.code === 0 && res.data.data.status === 'paid') {
-          setPaid(true);
-          clearInterval(timer);
+        if (res.data.code === 0) {
+          const data = res.data.data;
+          setOrder(data);
+          if (data.status === 'paid') {
+            setPaid(true);
+            if (pollRef.current) clearInterval(pollRef.current);
+          }
+          if (data.qr_code) {
+            setQrLoading(false);
+          }
         }
       } catch { /* ignore */ }
     }, 3000);
-    return () => clearInterval(timer);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [paid, orderNo]);
 
   useEffect(() => {
@@ -70,6 +87,16 @@ export default function CashierPage() {
       return () => clearTimeout(t);
     }
   }, [paid, order]);
+
+  useEffect(() => {
+    if (!order?.expire_at) return;
+    const timer = setInterval(() => {
+      const remaining = Math.max(0, Math.floor((new Date(order.expire_at).getTime() - Date.now()) / 1000));
+      setCountdown(remaining);
+      if (remaining <= 0) clearInterval(timer);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [order?.expire_at]);
 
   const handleConfirm = async () => {
     setConfirming(true);
@@ -94,6 +121,15 @@ export default function CashierPage() {
     });
   };
 
+  const formatCountdown = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const hasQRCode = order?.qr_code && order.qr_code !== '';
+  const isBotProcessing = order?.bot_status === 'queued' || order?.bot_status === 'processing';
+
   if (loading) {
     return (
       <div style={styles.container}>
@@ -111,6 +147,18 @@ export default function CashierPage() {
         <div style={styles.card}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>&#10060;</div>
           <h2 style={{ color: '#ff4d4f' }}>{error}</h2>
+        </div>
+      </div>
+    );
+  }
+
+  if (order?.status === 'expired') {
+    return (
+      <div style={styles.container}>
+        <div style={styles.card}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>&#9200;</div>
+          <h2 style={{ color: '#faad14' }}>订单已过期</h2>
+          <p style={{ color: '#999', marginTop: 8 }}>请重新下单</p>
         </div>
       </div>
     );
@@ -147,9 +195,84 @@ export default function CashierPage() {
             ¥{order?.amount?.toFixed(2)}
           </p>
           <p style={{ color: '#bbb', fontSize: 12 }}>订单号: {order?.order_no}</p>
+          {countdown > 0 && (
+            <div style={styles.countdownBadge}>
+              <span style={{ marginRight: 4 }}>&#9202;</span>
+              剩余 {formatCountdown(countdown)}
+            </div>
+          )}
         </div>
 
-        {acc ? (
+        {/* QR Code Mode */}
+        {hasQRCode && (
+          <div style={styles.qrSection}>
+            <div style={styles.sectionTitle}>
+              <span style={{ color: '#1890ff', marginRight: 6 }}>&#128179;</span>
+              <span>扫码支付</span>
+            </div>
+
+            <div style={styles.qrContainer}>
+              <img
+                src={order.qr_code}
+                alt="支付二维码"
+                style={styles.qrImage}
+                onLoad={() => setQrLoading(false)}
+                onError={() => setQrLoading(false)}
+              />
+              {qrLoading && (
+                <div style={styles.qrOverlay}>
+                  <div style={styles.spinner} />
+                </div>
+              )}
+            </div>
+
+            <div style={styles.qrHint}>
+              <div style={styles.qrHintIcon}>
+                <span style={{ fontSize: 24 }}>&#128241;</span>
+              </div>
+              <div>
+                <p style={{ fontWeight: 600, color: '#333', margin: '0 0 4px 0', fontSize: 15 }}>
+                  请使用支付宝扫描二维码
+                </p>
+                <p style={{ color: '#999', margin: 0, fontSize: 13 }}>
+                  扫码完成支付后，页面将自动跳转
+                </p>
+              </div>
+            </div>
+
+            <div style={styles.statusBar}>
+              <div style={styles.statusDot} />
+              <span style={{ color: '#999', fontSize: 13 }}>正在等待支付...</span>
+            </div>
+          </div>
+        )}
+
+        {/* Bot Processing State */}
+        {isBotProcessing && !hasQRCode && (
+          <div style={styles.processingSection}>
+            <div style={styles.processingAnim}>
+              <div style={styles.spinner} />
+            </div>
+            <p style={{ color: '#666', fontSize: 16, fontWeight: 600, margin: '16px 0 4px' }}>
+              正在获取支付码...
+            </p>
+            <p style={{ color: '#999', fontSize: 13, margin: 0 }}>
+              系统正在为您准备支付通道，请稍候
+            </p>
+          </div>
+        )}
+
+        {/* Bot Failed */}
+        {order?.bot_status === 'failed' && !hasQRCode && (
+          <div style={styles.failedSection}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>&#9888;&#65039;</div>
+            <p style={{ color: '#ff4d4f', fontSize: 16, fontWeight: 600 }}>获取支付码失败</p>
+            <p style={{ color: '#999', fontSize: 13 }}>请联系客服或重新下单</p>
+          </div>
+        )}
+
+        {/* Manual Mode (no bot) */}
+        {!hasQRCode && !isBotProcessing && order?.bot_status !== 'failed' && acc && (
           <div style={styles.accountSection}>
             <div style={styles.sectionTitle}>
               {order?.game_icon && (
@@ -209,7 +332,10 @@ export default function CashierPage() {
               {confirming ? '确认中...' : '我已完成充值'}
             </button>
           </div>
-        ) : (
+        )}
+
+        {/* No account, no bot */}
+        {!hasQRCode && !isBotProcessing && order?.bot_status !== 'failed' && !acc && (
           <div style={{ padding: 20, color: '#999', textAlign: 'center' }}>
             暂未分配游戏账号，请稍后刷新页面
             <br />
@@ -255,6 +381,90 @@ const styles: Record<string, React.CSSProperties> = {
   },
   amountSection: {
     marginBottom: 24,
+  },
+  countdownBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    marginTop: 8,
+    padding: '4px 12px',
+    borderRadius: 12,
+    background: '#fff7e6',
+    border: '1px solid #ffe58f',
+    color: '#d48806',
+    fontSize: 13,
+    fontWeight: 600,
+  },
+  qrSection: {
+    textAlign: 'center' as const,
+  },
+  qrContainer: {
+    position: 'relative' as const,
+    display: 'inline-block',
+    padding: 12,
+    borderRadius: 12,
+    border: '2px solid #f0f0f0',
+    background: '#fafafa',
+    margin: '16px 0',
+  },
+  qrImage: {
+    width: 200,
+    height: 200,
+    display: 'block',
+  },
+  qrOverlay: {
+    position: 'absolute' as const,
+    inset: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'rgba(255,255,255,0.8)',
+    borderRadius: 12,
+  },
+  qrHint: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    background: '#f0f5ff',
+    borderRadius: 10,
+    margin: '16px 0',
+    textAlign: 'left' as const,
+  },
+  qrHintIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: '50%',
+    background: '#e6f4ff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  statusBar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: '12px 0',
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: '50%',
+    background: '#52c41a',
+    animation: 'pulse 2s ease-in-out infinite',
+  },
+  processingSection: {
+    padding: '40px 20px',
+    textAlign: 'center' as const,
+  },
+  processingAnim: {
+    display: 'flex',
+    justifyContent: 'center',
+  },
+  failedSection: {
+    padding: '40px 20px',
+    textAlign: 'center' as const,
   },
   accountSection: {
     textAlign: 'left' as const,

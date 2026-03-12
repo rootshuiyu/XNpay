@@ -26,6 +26,7 @@ import {
   ThunderboltOutlined,
   ProfileOutlined,
   AuditOutlined,
+  RobotOutlined,
 } from '@ant-design/icons';
 import useAuthStore from '../store/useAuthStore';
 import { getProfile } from '../api/auth';
@@ -77,6 +78,7 @@ const menuItems = [
       { key: '/operation-logs', icon: <AuditOutlined />, label: '操作日志' },
     ],
   },
+  { key: '/bot-manage', icon: <RobotOutlined />, label: '上号器管理' },
   { key: '/api-doc', icon: <ApiOutlined />, label: 'API 文档' },
 ];
 
@@ -98,6 +100,7 @@ const breadcrumbMap: Record<string, string> = {
   '/delivery-enhancement': '商户接入',
   '/automation': '自动化中心',
   '/operation-logs': '操作日志',
+  '/bot-manage': '上号器管理',
 };
 
 export default function MainLayout() {

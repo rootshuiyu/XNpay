@@ -46,6 +46,7 @@ func InitDB() {
 		&SystemConfig{},
 		&OperationLog{},
 		&LoginLog{},
+		&GameSession{},
 	)
 	if err != nil {
 		log.Fatalf("Failed to auto migrate: %v", err)

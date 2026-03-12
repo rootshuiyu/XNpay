@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"xinipay/internal/bot"
 	"xinipay/internal/channel"
 	"xinipay/internal/model"
 	"xinipay/internal/service"
@@ -141,6 +142,10 @@ func PayCreateOrder(c *gin.Context) {
 
 	model.DB.Model(&order).Update("account_id", assigned.ID)
 
+	if bot.Bot.IsRunning() {
+		model.DB.Model(&order).Update("bot_status", bot.BotStatusQueued)
+	}
+
 	cashierURL := fmt.Sprintf("/cashier/%s", orderNo)
 	c.JSON(http.StatusOK, gin.H{
 		"code":    0,
@@ -242,6 +247,11 @@ func CashierGetOrder(c *gin.Context) {
 		}
 	}
 
+	qrProxyURL := ""
+	if order.QrCode != "" {
+		qrProxyURL = fmt.Sprintf("/pay/qr/%s", order.OrderNo)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"code": 0,
 		"data": gin.H{
@@ -256,6 +266,9 @@ func CashierGetOrder(c *gin.Context) {
 			"created_at":   order.CreatedAt,
 			"expire_at":    order.ExpireAt,
 			"notify_status": order.NotifyStatus,
+			"qr_code":      qrProxyURL,
+			"bot_status":   order.BotStatus,
+			"pay_method":   order.PayMethod,
 		},
 	})
 }

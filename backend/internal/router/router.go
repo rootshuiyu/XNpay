@@ -6,6 +6,7 @@ import (
 	"xinipay/internal/handler"
 	"xinipay/internal/middleware"
 
+	_ "xinipay/internal/bot"
 	_ "xinipay/internal/channel"
 
 	"github.com/gin-contrib/static"
@@ -119,6 +120,23 @@ func SetupRouter() *gin.Engine {
 			automation.POST("/run", handler.RunAutomationTasks)
 		}
 
+		botAPI := protected.Group("/bot")
+		botAPI.Use(middleware.AdminOnly())
+		{
+			botAPI.GET("/status", handler.BotGetStatus)
+			botAPI.POST("/toggle", handler.BotToggle)
+			botAPI.GET("/sessions", handler.BotGetSessions)
+			botAPI.DELETE("/sessions/:id", handler.BotClearSession)
+			botAPI.GET("/proxies", handler.BotGetProxies)
+			botAPI.POST("/proxies", handler.BotAddProxy)
+			botAPI.DELETE("/proxies", handler.BotRemoveProxy)
+			botAPI.POST("/proxies/toggle", handler.BotToggleProxy)
+			botAPI.POST("/proxies/health-check", handler.BotHealthCheck)
+			botAPI.POST("/orders/:id/retry", handler.BotRetryOrder)
+			botAPI.GET("/orders", handler.BotGetOrderBot)
+			botAPI.GET("/qr-proxy", handler.BotGetQRProxy)
+		}
+
 		merchants := protected.Group("/merchants")
 		merchants.Use(middleware.AdminOnly())
 		{
@@ -177,6 +195,8 @@ merchant.Use(middleware.MerchantAuth())
 
 		pay.GET("/mock/scan/:order_no", handler.MockPayScan)
 		pay.POST("/mock/callback/:order_no", handler.MockPayCallback)
+
+		pay.GET("/qr/:order_no", handler.PublicQRProxy)
 	}
 
 	return r
