@@ -29,8 +29,7 @@ FROM alpine:3.19
 
 RUN apk add --no-cache ca-certificates tzdata \
     && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
-    && echo "Asia/Shanghai" > /etc/timezone \
-    && apk del tzdata
+    && echo "Asia/Shanghai" > /etc/timezone
 
 RUN addgroup -S app && adduser -S app -G app
 
