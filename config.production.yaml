@@ -6,7 +6,7 @@ database:
   host: postgres
   port: 5432
   user: xinipay
-  password: "CHANGE_ME_STRONG_PASSWORD"
+  password: "XiniPay2026Secure!"
   dbname: xinipay
   sslmode: disable
 
@@ -17,9 +17,9 @@ redis:
   db: 0
 
 jwt:
-  secret: "CHANGE_ME_RANDOM_JWT_SECRET_AT_LEAST_32_CHARS"
+  secret: "xinipay-jwt-production-secret-key-2026-random"
   expire: 24
 
 license:
-  enabled: true
+  enabled: false
   file_path: "./license.enc"

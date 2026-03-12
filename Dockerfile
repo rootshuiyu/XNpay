@@ -8,10 +8,9 @@ COPY frontend/ ./
 RUN npm run build
 
 # ===== Stage 2: Build Go binary =====
-FROM golang:1.26-alpine AS backend-builder
+FROM golang:alpine AS backend-builder
 
 RUN apk add --no-cache git
-RUN go install mvdan.cc/garble@latest
 
 WORKDIR /app/backend
 COPY backend/go.mod backend/go.sum ./
@@ -19,8 +18,8 @@ RUN go mod download
 COPY backend/ ./
 
 ARG PUBLIC_KEY_PEM=""
-RUN garble -literals -tiny -seed=random \
-    build -ldflags="-s -w -X 'xinipay/internal/license.publicKeyPEM=${PUBLIC_KEY_PEM}'" \
+RUN CGO_ENABLED=0 go build \
+    -ldflags="-s -w -X 'xinipay/internal/license.publicKeyPEM=${PUBLIC_KEY_PEM}'" \
     -o /xinipay ./cmd/server/
 
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /fingerprint ./cmd/fingerprint/
