@@ -45,10 +45,10 @@ const kb: Record<string, React.CSSProperties> = {
   btn: {
     fontSize: 21,
     fontWeight: 500,
-    background: '#f9fafb',
+    background: '#fff',
     border: 'none',
-    borderRight: '1px solid #e0e0e0',
-    borderBottom: '1px solid #e0e0e0',
+    borderRight: '1px solid #f0f0f0',
+    borderBottom: '1px solid #f0f0f0',
     cursor: 'pointer',
     color: '#222',
     display: 'flex',
@@ -57,7 +57,7 @@ const kb: Record<string, React.CSSProperties> = {
     WebkitTapHighlightColor: 'transparent',
     userSelect: 'none',
   },
-  del: { background: '#eef0f3' },
+  del: { background: '#f5f6f8' },
 };
 
 export default function PayLinkPage() {
@@ -241,31 +241,33 @@ export default function PayLinkPage() {
         </div>
       </div>
 
-      {/* 底部键盘 */}
-      <div style={S.bottom}>
-        <div style={{flex:1, minWidth:0}}>
-          <Keyboard onKey={handleKey}/>
+      {/* 键盘区（紧贴卡片） */}
+      <div style={S.kbCard}>
+        <div style={S.kbInner}>
+          <div style={{flex:1, minWidth:0}}>
+            <Keyboard onKey={handleKey}/>
+          </div>
+          <button
+            style={{
+              ...S.payBtn,
+              background: isValid && !submitting
+                ? (method==='wechat' ? 'linear-gradient(180deg,#09d060,#059a45)' : 'linear-gradient(180deg,#3b8eff,#0958d9)')
+                : '#c0c0c0',
+            }}
+            disabled={!isValid||submitting}
+            onClick={handlePay}
+          >
+            {submitting ? <span style={{fontSize:13}}>处理中</span> : <>
+              <span style={S.payIcon}>
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="white">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15l-4-4 1.4-1.4L11 14.2l5.6-5.6L18 10l-7 7z"/>
+                </svg>
+              </span>
+              <span style={S.payAmt}>{num > 0 ? `¥${num.toFixed(0)}` : '确认'}</span>
+              <span style={S.paySub}>支付</span>
+            </>}
+          </button>
         </div>
-        <button
-          style={{
-            ...S.payBtn,
-            background: isValid && !submitting
-              ? (method==='wechat' ? 'linear-gradient(180deg,#09d060,#059a45)' : 'linear-gradient(180deg,#3b8eff,#0958d9)')
-              : '#c0c0c0',
-          }}
-          disabled={!isValid||submitting}
-          onClick={handlePay}
-        >
-          {submitting ? <span style={{fontSize:13}}>处理中</span> : <>
-            <span style={S.payIcon}>
-              <svg viewBox="0 0 24 24" width="24" height="24" fill="white">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15l-4-4 1.4-1.4L11 14.2l5.6-5.6L18 10l-7 7z"/>
-              </svg>
-            </span>
-            <span style={S.payAmt}>{num > 0 ? `¥${num.toFixed(0)}` : '确认'}</span>
-            <span style={S.paySub}>支付</span>
-          </>}
-        </button>
       </div>
 
       <style>{`
@@ -291,9 +293,19 @@ const S: Record<string, React.CSSProperties> = {
     fontSize: 17, fontWeight: 700, color: '#fff', letterSpacing: 1,
   },
   card: {
-    background: '#fff', margin: '0 10px', borderRadius: 14,
+    background: '#fff', margin: '0 10px', borderRadius: '14px 14px 0 0',
     padding: '14px 14px 12px', flexShrink: 0,
     boxShadow: '0 2px 16px rgba(0,0,0,0.08)',
+  },
+  kbCard: {
+    background: '#fff', margin: '0 10px', borderRadius: '0 0 14px 14px',
+    padding: '0', flexShrink: 0,
+    boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+    borderTop: '1px solid #eee',
+  },
+  kbInner: {
+    display: 'flex', alignItems: 'stretch', height: 232,
+    borderRadius: '0 0 14px 14px', overflow: 'hidden',
   },
   amountRow: {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -353,16 +365,12 @@ const S: Record<string, React.CSSProperties> = {
   radioDot: {
     width: 7, height: 7, borderRadius: '50%', background: '#fff',
   },
-  bottom: {
-    display: 'flex', alignItems: 'stretch',
-    marginTop: 'auto', height: 240, flexShrink: 0,
-    background: '#eef0f3',
-  },
   payBtn: {
     width: 72, border: 'none', color: '#fff',
     display: 'flex', flexDirection: 'column' as const,
     alignItems: 'center', justifyContent: 'center',
     gap: 2, cursor: 'pointer', flexShrink: 0,
+    borderRadius: '0 0 14px 0',
   },
   payIcon: { lineHeight: 1 },
   payAmt: { fontSize: 15, fontWeight: 700 },
