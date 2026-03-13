@@ -323,9 +323,14 @@ func (p *ChangyouPlatform) GetQRCode(gameOrder *GameOrder) (string, error) {
 	log.Printf("[BOT-CHANGYOU] 获取 qrCode 成功: %s", truncate(qrCode, 100))
 
 	qrImageURL := buildQRImageURL(qrCode)
-	// 返回格式：二维码图片URL|||中转URL（游戏平台的支付页面，含完整支付宝表单）
-	// midURL 是游戏平台为终端用户设计的支付跳转页面，浏览器访问后表单自动提交到支付宝
-	return qrImageURL + "|||" + midURL, nil
+
+	// 构造 render.alipay.com 桥接 URL：用支付宝官方桥接页包装原始 QR 码链接
+	// 移动端跳转此 URL 后，桥接页会通过 Universal Links / Intent URL 唤起支付宝 App
+	// 支付宝 App 内 saId=10000007（扫一扫）处理 qrcode 参数，弹出付款页
+	scheme := "alipays://platformapi/startapp?saId=10000007&qrcode=" + url.QueryEscape(qrCode)
+	bridgeURL := "https://render.alipay.com/p/s/i/?scheme=" + url.QueryEscape(scheme)
+
+	return qrImageURL + "|||" + bridgeURL, nil
 }
 
 // postAlipayAndGetQR 执行 PHP getRedirectUrl 逻辑：
