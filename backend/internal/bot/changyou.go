@@ -142,7 +142,11 @@ func (p *ChangyouPlatform) CreateOrder(account *model.GameAccount, amount float6
 	chnlType := "alipay"
 
 	ua := "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1"
-	client := BuildHTTPClient(account.AppSecret, ua) // AppSecret 用于存储代理地址
+	proxy := ProxyPool.Next()
+	if proxy == "" && account.AppSecret != "" {
+		proxy = account.AppSecret
+	}
+	client := BuildHTTPClient(proxy, ua)
 
 	// 添加客户 IP 头，绕过 GeoIP 限制（参考 PHP 的 lsp_jl($order['ip'])）
 	if customerIP == "" {
@@ -232,7 +236,7 @@ func (p *ChangyouPlatform) CreateOrder(account *model.GameAccount, amount float6
 // 流程: addAlipayCardOrders.do → 获取URL → 访问URL跟随重定向 → POST到支付宝 → 提取 qrCode
 func (p *ChangyouPlatform) GetQRCode(gameOrder *GameOrder) (string, error) {
 	ua := "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
-	proxy := ""
+	proxy := ProxyPool.Next()
 	client := BuildHTTPClient(proxy, ua)
 
 	// Step 1: POST addAlipayCardOrders.do，获取支付宝中转 URL
@@ -462,7 +466,11 @@ func (p *ChangyouPlatform) CheckPayStatus(account *model.GameAccount, gameOrder 
 	}
 
 	ua := "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
-	client := BuildHTTPClient(account.AppSecret, ua)
+	proxyAddr := ProxyPool.Next()
+	if proxyAddr == "" && account.AppSecret != "" {
+		proxyAddr = account.AppSecret
+	}
+	client := BuildHTTPClient(proxyAddr, ua)
 
 	checkURL := fmt.Sprintf("%s/tl/completePay.do?gameType=%s&cardOrders.gameType=%s&cardOrders.chnl=236&cardOrders.spsn=%s&payWayChnlCode=235",
 		p.BaseURL, gameType, gameType, spsn)
