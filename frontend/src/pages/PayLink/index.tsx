@@ -293,19 +293,18 @@ const S: Record<string, React.CSSProperties> = {
     fontSize: 17, fontWeight: 700, color: '#fff', letterSpacing: 1,
   },
   card: {
-    background: '#fff', margin: '0 10px', borderRadius: '14px 14px 0 0',
+    background: '#fff', margin: '0 10px', borderRadius: 14,
     padding: '14px 14px 12px', flexShrink: 0,
     boxShadow: '0 2px 16px rgba(0,0,0,0.08)',
   },
   kbCard: {
-    background: '#fff', margin: '0 10px', borderRadius: '0 0 14px 14px',
-    padding: '0', flexShrink: 0,
-    boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
-    borderTop: '1px solid #eee',
+    background: '#fff', margin: '8px 10px 10px', borderRadius: 14,
+    flexShrink: 0,
+    boxShadow: '0 2px 16px rgba(0,0,0,0.08)',
+    overflow: 'hidden',
   },
   kbInner: {
     display: 'flex', alignItems: 'stretch', height: 232,
-    borderRadius: '0 0 14px 14px', overflow: 'hidden',
   },
   amountRow: {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -370,7 +369,7 @@ const S: Record<string, React.CSSProperties> = {
     display: 'flex', flexDirection: 'column' as const,
     alignItems: 'center', justifyContent: 'center',
     gap: 2, cursor: 'pointer', flexShrink: 0,
-    borderRadius: '0 0 14px 0',
+    borderRadius: '0 14px 14px 0',
   },
   payIcon: { lineHeight: 1 },
   payAmt: { fontSize: 15, fontWeight: 700 },
