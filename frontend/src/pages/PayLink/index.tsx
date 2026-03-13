@@ -283,8 +283,8 @@ export default function PayLinkPage() {
 const S: Record<string, React.CSSProperties> = {
   page: {
     display: 'flex', flexDirection: 'column',
-    minHeight: '100dvh', maxWidth: 480, margin: '0 auto',
-    background: '#1a6dff',
+    height: '100dvh', maxWidth: 480, margin: '0 auto',
+    background: '#1a6dff', overflow: 'hidden',
   },
   top: {
     padding: '12px 0 8px', textAlign: 'center' as const, flexShrink: 0,
@@ -298,13 +298,13 @@ const S: Record<string, React.CSSProperties> = {
     boxShadow: '0 2px 16px rgba(0,0,0,0.08)',
   },
   kbCard: {
-    background: '#fff', margin: '8px 10px 10px', borderRadius: 14,
-    flexShrink: 0,
-    boxShadow: '0 2px 16px rgba(0,0,0,0.08)',
+    background: '#fff', margin: '8px 10px 0', borderRadius: '14px 14px 0 0',
+    flex: 1, minHeight: 0,
+    boxShadow: '0 -2px 16px rgba(0,0,0,0.08)',
     overflow: 'hidden',
   },
   kbInner: {
-    display: 'flex', alignItems: 'stretch', height: 232,
+    display: 'flex', alignItems: 'stretch', height: '100%',
   },
   amountRow: {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -369,7 +369,7 @@ const S: Record<string, React.CSSProperties> = {
     display: 'flex', flexDirection: 'column' as const,
     alignItems: 'center', justifyContent: 'center',
     gap: 2, cursor: 'pointer', flexShrink: 0,
-    borderRadius: '0 14px 14px 0',
+    borderRadius: '0 14px 0 0',
   },
   payIcon: { lineHeight: 1 },
   payAmt: { fontSize: 15, fontWeight: 700 },
