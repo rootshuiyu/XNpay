@@ -187,7 +187,7 @@ export default function PayLinkPage() {
     <div style={p.page}>
       {/* 顶部 */}
       <div style={p.header}>
-        <div style={p.headerTitle}>{info?.title||'收银台'}</div>
+        <div style={p.headerTitle}>收银台</div>
         <div style={p.headerSub}>
           限额 ¥{info?.min_amount} ~ ¥{info?.max_amount}
         </div>
@@ -292,34 +292,35 @@ const p: Record<string, React.CSSProperties> = {
     height: '100dvh',
     maxWidth: 480,
     margin: '0 auto',
-    background: '#f7f8fa',
+    background: 'linear-gradient(180deg, #1a6dff 0%, #0b4fd4 40%, #f0f2f5 40%)',
     overflow: 'hidden',
   },
   header: {
-    background: '#fff',
-    padding: '18px 20px 14px',
+    padding: '20px 20px 14px',
     textAlign: 'center' as const,
-    borderBottom: '1px solid #f0f0f0',
   },
   headerTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: 700,
-    color: '#111',
-    letterSpacing: 0.5,
+    color: '#fff',
+    letterSpacing: 1,
   },
   headerSub: {
     fontSize: 12,
-    color: '#aaa',
+    color: 'rgba(255,255,255,0.7)',
     marginTop: 4,
   },
   amountArea: {
     background: '#fff',
-    padding: '20px 24px 10px',
+    margin: '0 14px',
+    borderRadius: '14px 14px 0 0',
+    padding: '24px 24px 12px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
     minHeight: 80,
+    boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
   },
   yuan: {
     fontSize: 28,
@@ -339,14 +340,18 @@ const p: Record<string, React.CSSProperties> = {
     textAlign: 'center' as const,
     color: '#ff4d4f',
     fontSize: 13,
-    margin: '0 0 0',
-    padding: '0 0 8px',
+    margin: 0,
+    padding: '0 14px 8px',
     background: '#fff',
+    marginLeft: 14,
+    marginRight: 14,
   },
   methodArea: {
     background: '#fff',
-    margin: '8px 0',
-    padding: '0 20px',
+    margin: '0 14px 8px',
+    borderRadius: '0 0 14px 14px',
+    padding: '0 20px 8px',
+    boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
   },
   methodItem: {
     display: 'flex',
