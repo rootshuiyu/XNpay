@@ -101,7 +101,12 @@ export default function PayLinkPage() {
   const orderNoRef = useRef<string>('');
   const qrCodeRef = useRef<string>('');
 
-  useEffect(() => { document.title = '收银台'; }, []);
+  useEffect(() => {
+    document.title = '收银台';
+    // 微信环境下立即弹出引导，不允许在微信内支付宝支付
+    const { isWeChat } = detectEnv();
+    if (isWeChat) setShowWxGuide(true);
+  }, []);
 
   useEffect(() => {
     axios.get(`/pay/l/${linkCode}`)
@@ -179,7 +184,7 @@ export default function PayLinkPage() {
 
   /* 微信引导蒙层 */
   if (showWxGuide) return (
-    <div style={S.wxOverlay} onClick={() => setShowWxGuide(false)}>
+    <div style={S.wxOverlay}>
       {/* 右上角箭头 */}
       <div style={S.wxArrow}>
         <svg width="60" height="60" viewBox="0 0 60 60" fill="none">
@@ -202,7 +207,10 @@ export default function PayLinkPage() {
           style={S.wxCopyBtn}
           onClick={(e) => {
             e.stopPropagation();
-            navigator.clipboard?.writeText(window.location.href);
+            navigator.clipboard?.writeText(window.location.href).then(() => {
+              (e.target as HTMLButtonElement).textContent = '已复制 ✓';
+              setTimeout(() => { (e.target as HTMLButtonElement).textContent = '复制链接'; }, 2000);
+            });
           }}
         >
           复制链接
