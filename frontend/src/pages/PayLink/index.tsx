@@ -9,6 +9,30 @@ interface LinkInfo {
   max_amount: number;
 }
 
+/* ── 环境检测 ── */
+function detectEnv() {
+  const ua = navigator.userAgent.toLowerCase();
+  const isWeChat = /micromessenger/.test(ua);
+  const isMobile = /android|iphone|ipad|ipod|mobile/.test(ua);
+  return { isWeChat, isMobile, isPC: !isMobile };
+}
+
+/* ── 智能跳转支付宝 ── */
+function jumpToAlipay(qrCode: string, orderNo: string) {
+  const { isWeChat, isMobile } = detectEnv();
+
+  if (isWeChat) return 'wechat_block';
+
+  if (isMobile) {
+    const scheme = `alipays://platformapi/startapp?saId=10000007&qrcode=${encodeURIComponent(qrCode)}`;
+    window.location.href = scheme;
+    return 'scheme_jump';
+  }
+
+  window.location.href = `/cashier/${orderNo}`;
+  return 'pc_redirect';
+}
+
 const QUICK = [50, 100, 200, 300, 500, 1000];
 const ROWS = [['1','2','3'],['4','5','6'],['7','8','9'],['.',  '0','⌫']];
 
@@ -71,8 +95,11 @@ export default function PayLinkPage() {
   const [errMsg, setErrMsg]   = useState('');
   const [waiting, setWaiting] = useState(false);
   const [waitMsg, setWaitMsg] = useState('');
+  const [showWxGuide, setShowWxGuide] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval>|null>(null);
   const sourceRef = useRef<string>('link');
+  const orderNoRef = useRef<string>('');
+  const qrCodeRef = useRef<string>('');
 
   useEffect(() => { document.title = '收银台'; }, []);
 
@@ -122,6 +149,7 @@ export default function PayLinkPage() {
       if (method === 'wechat') { window.location.href = cashier_url; return; }
 
       setWaiting(true); setWaitMsg('正在生成支付链接...');
+      orderNoRef.current = order_no;
       let tries = 0;
       pollRef.current = setInterval(async () => {
         tries++;
@@ -129,8 +157,23 @@ export default function PayLinkPage() {
           const s = await axios.get(`/pay/cashier/${order_no}`);
           if (s.data.code===0 && s.data.data.qr_code) {
             clearInterval(pollRef.current!);
-            setWaitMsg('正在跳转支付宝...');
-            setTimeout(() => { window.location.href = s.data.data.qr_code; }, 400);
+            const qrCode = s.data.data.qr_code;
+            setWaitMsg('正在唤起支付宝...');
+
+            const result = jumpToAlipay(qrCode, order_no);
+
+            if (result === 'wechat_block') {
+              setShowWxGuide(true);
+              qrCodeRef.current = qrCode;
+            } else if (result === 'scheme_jump') {
+              // scheme 跳转后 2 秒检测是否成功
+              setTimeout(() => {
+                // 如果页面仍然可见，说明唤起失败（未安装支付宝）
+                if (!document.hidden) {
+                  window.location.href = `/cashier/${order_no}`;
+                }
+              }, 2000);
+            }
           }
           if (s.data.data?.status==='expired'||s.data.data?.status==='failed') {
             clearInterval(pollRef.current!); setWaiting(false); setErrMsg('支付链接生成失败，请重试');
@@ -142,11 +185,53 @@ export default function PayLinkPage() {
     finally { setSub(false); }
   };
 
+  /* 微信引导蒙层 */
+  if (showWxGuide) return (
+    <div style={S.wxOverlay} onClick={() => setShowWxGuide(false)}>
+      {/* 右上角箭头 */}
+      <div style={S.wxArrow}>
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none">
+          <path d="M30 55V15" stroke="white" strokeWidth="3" strokeLinecap="round"/>
+          <path d="M15 30L30 15L45 30" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </div>
+      <div style={S.wxGuideBox}>
+        <p style={S.wxGuideTitle}>请在浏览器中打开</p>
+        <p style={S.wxGuideDesc}>为了正常完成支付，请按以下步骤操作：</p>
+        <div style={S.wxStep}>
+          <div style={S.wxStepNum}>1</div>
+          <span>点击右上角 <b>「...」</b> 菜单</span>
+        </div>
+        <div style={S.wxStep}>
+          <div style={S.wxStepNum}>2</div>
+          <span>选择 <b>「在默认浏览器中打开」</b></span>
+        </div>
+        <button
+          style={S.wxCopyBtn}
+          onClick={(e) => {
+            e.stopPropagation();
+            navigator.clipboard?.writeText(window.location.href);
+          }}
+        >
+          复制链接
+        </button>
+      </div>
+      <style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}`}</style>
+    </div>
+  );
+
   /* 等待页 */
   if (waiting) return (
     <div style={S.waitBg}>
       <div style={S.waitBox}>
-        <div style={{ fontSize: 52, marginBottom: 14 }}>{method==='alipay' ? '🔵' : '🟢'}</div>
+        <div style={S.waitIconWrap}>
+          <svg viewBox="0 0 60 60" width="56" height="56" fill="none">
+            <circle cx="30" cy="30" r="28" stroke="#1677ff" strokeWidth="3" strokeDasharray="12 6" strokeLinecap="round">
+              <animateTransform attributeName="transform" type="rotate" from="0 30 30" to="360 30 30" dur="2s" repeatCount="indefinite"/>
+            </circle>
+            <path d="M30 10C16.7 10 6 20.7 6 34s10.7 24 24 24 24-10.7 24-24S43.3 10 30 10zm7.7 19.6c-2 .9-5.8-.7-9.1-3-2 2-4.1 3.5-5.8 3.5-2 0-3.3-1.3-3.3-3 0-2 1.7-3.3 3.8-3.3 1 0 2.3.3 3.6.8.7-.9 1.2-2 1.6-3h-7.2v-1.3h3.8v-1.2H21v-1.3h3.4V16h2.6v1.3h3.8v1.3h-3.8v1.2h4.2c-.4 1.3-1 2.5-1.8 3.7 2 1.1 3.8 1.7 5.1 1.7 1 0 1.6-.4 1.6-1s-.7-1.2-2-1.9l1.3-.8c1.6.8 2.5 1.8 2.5 3.3 0 .9-.4 1.7-.7 2.4z" fill="#1677ff"/>
+          </svg>
+        </div>
         <p style={S.waitTitle}>{waitMsg}</p>
         <p style={S.waitSub}>请稍候，正在处理您的支付请求</p>
         <div style={S.dotRow}>
@@ -404,5 +489,47 @@ const S: Record<string, React.CSSProperties> = {
   cancelBtn: {
     padding: '10px 36px', border: '1px solid #ddd', borderRadius: 8,
     background: '#fff', color: '#666', fontSize: 14, cursor: 'pointer',
+  },
+  waitIconWrap: {
+    marginBottom: 16,
+  },
+  // 微信蒙层
+  wxOverlay: {
+    position: 'fixed' as const, inset: 0,
+    background: 'rgba(0,0,0,0.75)', zIndex: 9999,
+    display: 'flex', flexDirection: 'column' as const,
+    alignItems: 'center', justifyContent: 'center',
+    padding: 24,
+    animation: 'fadeIn 0.25s ease-out',
+  },
+  wxArrow: {
+    position: 'absolute' as const, top: 8, right: 24,
+  },
+  wxGuideBox: {
+    background: '#fff', borderRadius: 16, padding: '28px 24px',
+    width: '100%', maxWidth: 320, textAlign: 'center' as const,
+  },
+  wxGuideTitle: {
+    fontSize: 18, fontWeight: 700, color: '#111', margin: '0 0 8px',
+  },
+  wxGuideDesc: {
+    fontSize: 13, color: '#888', margin: '0 0 20px',
+  },
+  wxStep: {
+    display: 'flex', alignItems: 'center', gap: 12,
+    padding: '12px 16px', background: '#f7f8fa', borderRadius: 10,
+    marginBottom: 10, fontSize: 14, color: '#333',
+    textAlign: 'left' as const,
+  },
+  wxStepNum: {
+    width: 24, height: 24, borderRadius: '50%',
+    background: '#1677ff', color: '#fff', fontSize: 13, fontWeight: 700,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
+  },
+  wxCopyBtn: {
+    marginTop: 16, padding: '10px 32px', border: '1px solid #1677ff',
+    borderRadius: 8, background: '#fff', color: '#1677ff',
+    fontSize: 14, fontWeight: 600, cursor: 'pointer',
   },
 };
