@@ -181,7 +181,7 @@ func (bs *BotService) processOrder(order model.PaymentOrder) {
 	bs.stats.TotalSuccess++
 	bs.stats.mu.Unlock()
 
-	log.Printf("[BOT] Order %s QR ready: %s", order.OrderNo, qrURL)
+	log.Printf("[BOT] Order %s QR ready: %s", order.OrderNo, qrImageURL)
 }
 
 func (bs *BotService) paymentPoller() {
