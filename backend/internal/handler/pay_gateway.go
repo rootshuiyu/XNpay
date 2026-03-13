@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -488,9 +489,8 @@ func broadcastNewOrder(orderNo string, amount float64) {
 	Hub.Broadcast([]byte(msg))
 }
 
-// AlipayH5Form 移动端支付宝 H5 跳转
-// 直接将用户浏览器重定向到支付宝原始付款链接（qr.alipay.com），
-// 支付宝页面会自动尝试唤起 App
+// AlipayH5Form 移动端支付宝唤起页
+// 返回自定义 HTML 页面，通过多种方式尝试唤起支付宝 App
 // GET /pay/h5/:order_no
 func AlipayH5Form(c *gin.Context) {
 	orderNo := c.Param("order_no")
@@ -505,7 +505,98 @@ func AlipayH5Form(c *gin.Context) {
 		return
 	}
 
-	// pay_url 存储的是原始支付宝链接（如 https://qr.alipay.com/baxXXX）
-	// 直接 302 跳转，支付宝页面会检测移动端并尝试唤起 App
-	c.Redirect(http.StatusFound, order.PayURL)
+	qrURL := order.PayURL
+	schemeURL := "alipays://platformapi/startapp?appId=20000067&url=" + url.QueryEscape(qrURL)
+	schemeScan := "alipays://platformapi/startapp?saId=10000007&qrcode=" + url.QueryEscape(qrURL)
+	bridgeScheme := "alipays://platformapi/startapp?saId=10000007&qrcode=" + url.QueryEscape(qrURL)
+	bridgeURL := "https://render.alipay.com/p/s/i/?scheme=" + url.QueryEscape(bridgeScheme)
+
+	html := fmt.Sprintf(`<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>正在打开支付宝...</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+background:linear-gradient(135deg,#1677ff 0%%,#0958d9 100%%);min-height:100vh;
+display:flex;align-items:center;justify-content:center;padding:20px}
+.card{background:#fff;border-radius:20px;padding:40px 28px;text-align:center;
+max-width:340px;width:100%%;box-shadow:0 8px 32px rgba(0,0,0,0.15)}
+.icon{width:72px;height:72px;margin:0 auto 20px;background:#1677ff;border-radius:50%%;
+display:flex;align-items:center;justify-content:center}
+.icon svg{width:40px;height:40px}
+h2{font-size:20px;color:#111;margin-bottom:8px}
+.sub{font-size:14px;color:#888;margin-bottom:28px}
+.btn{display:block;width:100%%;padding:16px;border:none;border-radius:12px;
+font-size:17px;font-weight:700;cursor:pointer;margin-bottom:12px;text-decoration:none;
+text-align:center;letter-spacing:0.5px;transition:opacity 0.2s}
+.btn:active{opacity:0.8}
+.btn-primary{background:linear-gradient(135deg,#1677ff,#0958d9);color:#fff;
+box-shadow:0 4px 16px rgba(22,119,255,0.35)}
+.btn-outline{background:#fff;color:#1677ff;border:1.5px solid #1677ff}
+.btn-link{background:none;border:none;color:#999;font-size:13px;padding:8px;font-weight:400}
+.spinner{display:inline-block;width:20px;height:20px;border:2.5px solid rgba(255,255,255,0.3);
+border-top-color:#fff;border-radius:50%%;animation:spin 0.8s linear infinite;
+vertical-align:middle;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.status{font-size:13px;color:#aaa;margin-top:16px}
+.dot{display:inline-block;width:6px;height:6px;border-radius:50%%;background:#52c41a;
+margin-right:6px;animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%%,100%%{opacity:1}50%%{opacity:0.3}}
+</style>
+</head><body>
+<div class="card">
+<div class="icon">
+<svg viewBox="0 0 40 40" fill="none">
+<path d="M20 3C10.6 3 3 10.6 3 20s7.6 17 17 17 17-7.6 17-17S29.4 3 20 3zm5.4 17.6c-1.4.6-4.1-.5-6.4-2-1.4 1.4-2.9 2.5-4.1 2.5-1.4 0-2.3-.9-2.3-2.1 0-1.4 1.2-2.3 2.7-2.3.7 0 1.6.2 2.5.6.5-.6.8-1.4 1.1-2.1h-5v-.9h2.7v-.9h-3.2V14h2v-1.4h1.8V14h2.7v.9H17v.9h2.9c-.3.9-.7 1.8-1.3 2.6 1.4.7 2.7 1.2 3.6 1.2.7 0 1.1-.3 1.1-.7s-.5-.8-1.4-1.3l.9-.6c1.1.6 1.8 1.3 1.8 2.3 0 .6-.3 1.2-.5 1.6z" fill="white"/>
+</svg>
+</div>
+<h2>正在打开支付宝</h2>
+<p class="sub">如果没有自动打开，请点击下方按钮</p>
+
+<a id="openBtn" class="btn btn-primary" href="%s">
+打开支付宝付款
+</a>
+
+<a class="btn btn-outline" href="%s">
+备用通道打开
+</a>
+
+<a class="btn btn-link" href="%s">
+仍然无法打开？点此重试
+</a>
+
+<div class="status"><span class="dot"></span>正在等待支付完成...</div>
+</div>
+
+<iframe id="schemeFrame" style="display:none" sandbox="allow-scripts allow-top-navigation"></iframe>
+
+<script>
+(function(){
+  var scheme1 = %q;
+  var scheme2 = %q;
+
+  // 方法1: 通过 location.href 尝试唤起（appId=20000067 在支付宝内打开链接）
+  try { window.location.href = scheme1; } catch(e){}
+
+  // 方法2: 300ms 后尝试扫一扫方式
+  setTimeout(function(){
+    try {
+      var f = document.getElementById('schemeFrame');
+      if(f) f.src = scheme2;
+    } catch(e){}
+  }, 300);
+
+  // 方法3: 800ms 后再次尝试 location
+  setTimeout(function(){
+    try { window.location.href = scheme1; } catch(e){}
+  }, 800);
+})();
+</script>
+</body></html>`, schemeURL, bridgeURL, qrURL, schemeURL, schemeScan)
+
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.Header("Cache-Control", "no-cache, no-store")
+	c.String(http.StatusOK, html)
 }
