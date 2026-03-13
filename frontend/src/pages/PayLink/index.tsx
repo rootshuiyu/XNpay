@@ -292,8 +292,9 @@ const S: Record<string, React.CSSProperties> = {
   },
   card: {
     background: '#fff', margin: '0 10px', borderRadius: 14,
-    padding: '14px 14px 10px', flexShrink: 0,
+    padding: '14px 14px 12px', flexShrink: 0,
     boxShadow: '0 2px 16px rgba(0,0,0,0.08)',
+    flex: 1, minHeight: 0, overflow: 'auto' as const,
   },
   amountRow: {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -355,7 +356,7 @@ const S: Record<string, React.CSSProperties> = {
   },
   bottom: {
     display: 'flex', alignItems: 'stretch',
-    marginTop: 'auto', flex: 1, minHeight: 0,
+    marginTop: 'auto', height: 232, flexShrink: 0,
     background: '#eef0f3', borderTop: '1px solid #d0d0d0',
   },
   payBtn: {
