@@ -1,9 +1,7 @@
 package handler
 
 import (
-	"encoding/json"
 	"fmt"
-	"html"
 	"net/http"
 	"strings"
 	"time"
@@ -490,7 +488,9 @@ func broadcastNewOrder(orderNo string, amount float64) {
 	Hub.Broadcast([]byte(msg))
 }
 
-// AlipayH5Form 提供支付宝 H5 表单页面，用户浏览器打开后自动提交到支付宝
+// AlipayH5Form 移动端支付宝 H5 跳转
+// 直接将用户浏览器重定向到支付宝原始付款链接（qr.alipay.com），
+// 支付宝页面会自动尝试唤起 App
 // GET /pay/h5/:order_no
 func AlipayH5Form(c *gin.Context) {
 	orderNo := c.Param("order_no")
@@ -499,53 +499,13 @@ func AlipayH5Form(c *gin.Context) {
 		c.String(http.StatusNotFound, "订单不存在")
 		return
 	}
+
 	if order.PayURL == "" {
 		c.String(http.StatusBadRequest, "支付链接尚未生成，请稍后重试")
 		return
 	}
 
-	var h5Data struct {
-		Action string            `json:"action"`
-		Fields map[string]string `json:"fields"`
-	}
-	if err := json.Unmarshal([]byte(order.PayURL), &h5Data); err != nil || h5Data.Action == "" {
-		c.String(http.StatusBadRequest, "支付数据异常")
-		return
-	}
-
-	var inputs strings.Builder
-	for name, value := range h5Data.Fields {
-		inputs.WriteString(fmt.Sprintf(
-			`<input type="hidden" name="%s" value="%s">`,
-			html.EscapeString(name), html.EscapeString(value),
-		))
-		inputs.WriteString("\n")
-	}
-
-	formHTML := fmt.Sprintf(`<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>正在跳转支付宝...</title>
-<style>
-body{display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#f5f5f5;font-family:system-ui,-apple-system,sans-serif}
-.box{text-align:center;color:#333}
-.spinner{width:40px;height:40px;border:3px solid #ddd;border-top-color:#1677ff;border-radius:50%%;animation:spin 1s linear infinite;margin:0 auto 16px}
-@keyframes spin{to{transform:rotate(360deg)}}
-</style>
-</head>
-<body>
-<div class="box">
-<div class="spinner"></div>
-<p>正在跳转到支付宝，请稍候...</p>
-</div>
-<form id="alipayForm" action="%s" method="POST" style="display:none">
-%s
-</form>
-<script>document.getElementById('alipayForm').submit();</script>
-</body>
-</html>`, html.EscapeString(h5Data.Action), inputs.String())
-
-	c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(formHTML))
+	// pay_url 存储的是原始支付宝链接（如 https://qr.alipay.com/baxXXX）
+	// 直接 302 跳转，支付宝页面会检测移动端并尝试唤起 App
+	c.Redirect(http.StatusFound, order.PayURL)
 }

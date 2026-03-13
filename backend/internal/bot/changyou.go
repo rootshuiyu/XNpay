@@ -302,21 +302,13 @@ func (p *ChangyouPlatform) GetQRCode(gameOrder *GameOrder) (string, error) {
 	log.Printf("[BOT-CHANGYOU] 中转URL响应: status=%d, len=%d", resp2.StatusCode, len(html2))
 	log.Printf("[BOT-CHANGYOU] 中转URL body: %s", truncate(html2, 1000))
 
-	// Step 4: 提取支付宝表单 action 和 所有字段
+	// Step 4: 提取支付宝表单 action 和 biz_content
 	alipayAction, bizContent := extractAlipayFormData(html2)
 	if alipayAction == "" {
 		return "", fmt.Errorf("获取支付链接失败2，无法提取支付宝 form action，body: %s", truncate(html2, 500))
 	}
-	allFields := extractFormFields(html2)
 
-	log.Printf("[BOT-CHANGYOU] 支付宝 action: %s, biz_content len: %d, fields: %d", alipayAction, len(bizContent), len(allFields))
-
-	// 构建 H5 表单数据 JSON（action + 所有 hidden inputs）
-	h5Data := map[string]interface{}{
-		"action": alipayAction,
-		"fields": allFields,
-	}
-	h5JSON, _ := json.Marshal(h5Data)
+	log.Printf("[BOT-CHANGYOU] 支付宝 action: %s, biz_content len: %d", alipayAction, len(bizContent))
 
 	// Step 5: POST 到支付宝，获取最终 QR 码（PHP getRedirectUrl → getQrcode）
 	qrCode, err := p.postAlipayAndGetQR(alipayAction, bizContent, midURL, ua)
@@ -331,8 +323,8 @@ func (p *ChangyouPlatform) GetQRCode(gameOrder *GameOrder) (string, error) {
 	log.Printf("[BOT-CHANGYOU] 获取 qrCode 成功: %s", truncate(qrCode, 100))
 
 	qrImageURL := buildQRImageURL(qrCode)
-	// 返回格式：图片URL|||H5表单JSON
-	return qrImageURL + "|||" + string(h5JSON), nil
+	// 返回格式：二维码图片URL|||原始支付宝链接（如 https://qr.alipay.com/baxXXX）
+	return qrImageURL + "|||" + qrCode, nil
 }
 
 // postAlipayAndGetQR 执行 PHP getRedirectUrl 逻辑：
