@@ -281,8 +281,8 @@ export default function PayLinkPage() {
 const S: Record<string, React.CSSProperties> = {
   page: {
     display: 'flex', flexDirection: 'column',
-    height: '100dvh', maxWidth: 480, margin: '0 auto',
-    background: '#1a6dff', overflow: 'hidden',
+    minHeight: '100dvh', maxWidth: 480, margin: '0 auto',
+    background: '#1a6dff',
   },
   top: {
     padding: '12px 0 8px', textAlign: 'center' as const, flexShrink: 0,
@@ -294,7 +294,6 @@ const S: Record<string, React.CSSProperties> = {
     background: '#fff', margin: '0 10px', borderRadius: 14,
     padding: '14px 14px 12px', flexShrink: 0,
     boxShadow: '0 2px 16px rgba(0,0,0,0.08)',
-    flex: 1, minHeight: 0, overflow: 'auto' as const,
   },
   amountRow: {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -356,8 +355,8 @@ const S: Record<string, React.CSSProperties> = {
   },
   bottom: {
     display: 'flex', alignItems: 'stretch',
-    marginTop: 'auto', height: 232, flexShrink: 0,
-    background: '#eef0f3', borderTop: '1px solid #d0d0d0',
+    marginTop: 'auto', height: 240, flexShrink: 0,
+    background: '#eef0f3',
   },
   payBtn: {
     width: 72, border: 'none', color: '#fff',
