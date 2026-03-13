@@ -159,7 +159,7 @@ func (bs *BotService) processOrder(order model.PaymentOrder) {
 		return
 	}
 
-	// 拆分：图片URL|||原始支付链接
+	// 拆分：图片URL|||H5表单JSON（含 action + fields）
 	qrImageURL := qrResult
 	payURL := ""
 	if parts := strings.SplitN(qrResult, "|||", 2); len(parts) == 2 {

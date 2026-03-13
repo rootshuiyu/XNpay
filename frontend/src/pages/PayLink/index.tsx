@@ -18,15 +18,15 @@ function detectEnv() {
 }
 
 /* ── 智能跳转支付宝 ── */
-function jumpToAlipay(qrCode: string, orderNo: string) {
+function jumpToAlipay(orderNo: string) {
   const { isWeChat, isMobile } = detectEnv();
 
   if (isWeChat) return 'wechat_block';
 
   if (isMobile) {
-    const scheme = `alipays://platformapi/startapp?saId=10000007&qrcode=${encodeURIComponent(qrCode)}`;
-    window.location.href = scheme;
-    return 'scheme_jump';
+    // 跳转到后端 H5 表单页，浏览器自动提交到支付宝（官方 alipay.trade.wap.pay 流程）
+    window.location.href = `/pay/h5/${orderNo}`;
+    return 'h5_redirect';
   }
 
   window.location.href = `/cashier/${orderNo}`;
@@ -157,24 +157,15 @@ export default function PayLinkPage() {
           const s = await axios.get(`/pay/cashier/${order_no}`);
           if (s.data.code===0 && s.data.data.qr_code) {
             clearInterval(pollRef.current!);
-            // pay_url 是原始支付宝链接，qr_code 是二维码图片
-            const payUrl = s.data.data.pay_url || s.data.data.qr_code;
-            setWaitMsg('正在唤起支付宝...');
+            setWaitMsg('正在跳转支付宝...');
 
-            const result = jumpToAlipay(payUrl, order_no);
+            const result = jumpToAlipay(order_no);
 
             if (result === 'wechat_block') {
               setShowWxGuide(true);
-              qrCodeRef.current = payUrl;
-            } else if (result === 'scheme_jump') {
-              // scheme 跳转后 2 秒检测是否成功
-              setTimeout(() => {
-                // 如果页面仍然可见，说明唤起失败（未安装支付宝）
-                if (!document.hidden) {
-                  window.location.href = `/cashier/${order_no}`;
-                }
-              }, 2000);
+              qrCodeRef.current = order_no;
             }
+            // h5_redirect / pc_redirect 已通过 location.href 跳转
           }
           if (s.data.data?.status==='expired'||s.data.data?.status==='failed') {
             clearInterval(pollRef.current!); setWaiting(false); setErrMsg('支付链接生成失败，请重试');

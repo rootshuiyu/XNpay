@@ -206,6 +206,7 @@ merchant.Use(middleware.MerchantAuth())
 		pay.POST("/mock/callback/:order_no", handler.MockPayCallback)
 
 		pay.GET("/qr/:order_no", handler.PublicQRProxy)
+		pay.GET("/h5/:order_no", handler.AlipayH5Form)
 
 		// 收款链接（公开，无需签名）
 		pay.GET("/l/:link_code", handler.PayLinkInfo)
