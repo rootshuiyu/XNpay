@@ -159,7 +159,7 @@ func (bs *BotService) processOrder(order model.PaymentOrder) {
 		return
 	}
 
-	// 拆分：图片URL|||原始支付宝链接（如 https://qr.alipay.com/baxXXX）
+	// 拆分：图片URL|||中转URL（游戏平台的支付跳转页）
 	qrImageURL := qrResult
 	payURL := ""
 	if parts := strings.SplitN(qrResult, "|||", 2); len(parts) == 2 {

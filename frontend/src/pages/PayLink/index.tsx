@@ -99,7 +99,6 @@ export default function PayLinkPage() {
   const pollRef = useRef<ReturnType<typeof setInterval>|null>(null);
   const sourceRef = useRef<string>('link');
   const orderNoRef = useRef<string>('');
-  const qrCodeRef = useRef<string>('');
 
   useEffect(() => {
     document.title = '收银台';
@@ -160,7 +159,8 @@ export default function PayLinkPage() {
         tries++;
         try {
           const s = await axios.get(`/pay/cashier/${order_no}`);
-          if (s.data.code===0 && s.data.data.qr_code) {
+          const d = s.data?.data;
+          if (s.data.code===0 && (d?.qr_code || d?.pay_url)) {
             clearInterval(pollRef.current!);
             setWaitMsg('正在跳转支付宝...');
 
@@ -168,7 +168,6 @@ export default function PayLinkPage() {
 
             if (result === 'wechat_block') {
               setShowWxGuide(true);
-              qrCodeRef.current = order_no;
             }
             // h5_redirect / pc_redirect 已通过 location.href 跳转
           }
