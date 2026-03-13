@@ -284,6 +284,7 @@ func CashierGetOrder(c *gin.Context) {
 			"expire_at":    order.ExpireAt,
 			"notify_status": order.NotifyStatus,
 			"qr_code":      qrProxyURL,
+			"pay_url":      order.PayURL,
 			"bot_status":   order.BotStatus,
 			"pay_method":   order.PayMethod,
 		},

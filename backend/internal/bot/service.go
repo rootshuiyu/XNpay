@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -152,16 +153,25 @@ func (bs *BotService) processOrder(order model.PaymentOrder) {
 		"game_platform": platform.Name(),
 	})
 
-	qrURL, err := platform.GetQRCode(gameOrder)
+	qrResult, err := platform.GetQRCode(gameOrder)
 	if err != nil {
 		bs.failOrder(order.ID, fmt.Sprintf("获取二维码失败: %v", err))
 		return
 	}
 
+	// 拆分：图片URL|||原始支付链接
+	qrImageURL := qrResult
+	payURL := ""
+	if parts := strings.SplitN(qrResult, "|||", 2); len(parts) == 2 {
+		qrImageURL = parts[0]
+		payURL = parts[1]
+	}
+
 	formDataJSON, _ := json.Marshal(gameOrder.FormData)
 
 	model.DB.Model(&order).Updates(map[string]interface{}{
-		"qr_code":    qrURL,
+		"qr_code":    qrImageURL,
+		"pay_url":    payURL,
 		"bot_status": BotStatusQrReady,
 		"pay_method": "alipay_qr",
 		"payer_info": string(formDataJSON),

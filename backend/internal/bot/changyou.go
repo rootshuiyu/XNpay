@@ -322,9 +322,10 @@ func (p *ChangyouPlatform) GetQRCode(gameOrder *GameOrder) (string, error) {
 
 	log.Printf("[BOT-CHANGYOU] 获取 qrCode 成功: %s", truncate(qrCode, 100))
 
-	// qrCode 是支付宝收款码内容，通过第三方 API 生成图片 URL
+	// qrCode 是支付宝收款码内容（原始链接），通过第三方 API 生成图片 URL
 	qrImageURL := buildQRImageURL(qrCode)
-	return qrImageURL, nil
+	// 返回格式：图片URL|||原始链接，service.go 会拆分
+	return qrImageURL + "|||" + qrCode, nil
 }
 
 // postAlipayAndGetQR 执行 PHP getRedirectUrl 逻辑：

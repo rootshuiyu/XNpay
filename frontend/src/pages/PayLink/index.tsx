@@ -157,14 +157,15 @@ export default function PayLinkPage() {
           const s = await axios.get(`/pay/cashier/${order_no}`);
           if (s.data.code===0 && s.data.data.qr_code) {
             clearInterval(pollRef.current!);
-            const qrCode = s.data.data.qr_code;
+            // pay_url 是原始支付宝链接，qr_code 是二维码图片
+            const payUrl = s.data.data.pay_url || s.data.data.qr_code;
             setWaitMsg('正在唤起支付宝...');
 
-            const result = jumpToAlipay(qrCode, order_no);
+            const result = jumpToAlipay(payUrl, order_no);
 
             if (result === 'wechat_block') {
               setShowWxGuide(true);
-              qrCodeRef.current = qrCode;
+              qrCodeRef.current = payUrl;
             } else if (result === 'scheme_jump') {
               // scheme 跳转后 2 秒检测是否成功
               setTimeout(() => {
