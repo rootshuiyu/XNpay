@@ -65,7 +65,8 @@ c.close()
 # ── 后台编译 Go + 前端 ─────────────────────────────
 c = connect()
 print("\n=== 2. 后台编译 Go 后端 + 前端 ===")
-run(c, '''rm -f /tmp/build.done /tmp/build.fail /tmp/frontend.done /tmp/frontend.fail
+run(c, '''rm -f /opt/xinipay/backend/.build_done /opt/xinipay/backend/.build_fail \
+         /opt/xinipay/frontend/.build_done /opt/xinipay/frontend/.build_fail
 mkdir -p /root/gomod
 
 # Go 后端编译
@@ -75,8 +76,8 @@ nohup docker run --rm \
   -w /app golang:latest \
   sh -c "go build -ldflags='-s -w' -o /app/xinipay-server-new \
          ./cmd/server/main.go \
-         && touch /tmp/build.done \
-         || touch /tmp/build.fail" \
+         && touch /app/.build_done \
+         || touch /app/.build_fail" \
 > /tmp/gobuild.log 2>&1 &
 
 # 前端编译
@@ -84,8 +85,8 @@ nohup docker run --rm \
   -v /opt/xinipay/frontend:/app \
   -w /app node:20-alpine \
   sh -c "npm ci --silent && npm run build \
-         && touch /tmp/frontend.done \
-         || touch /tmp/frontend.fail" \
+         && touch /app/.build_done \
+         || touch /app/.build_fail" \
 > /tmp/frontend-build.log 2>&1 &
 
 echo "后台编译已启动（Go + Frontend）"''', timeout=10)
@@ -105,7 +106,7 @@ for i in range(90):
     time.sleep(10)
     try:
         c = connect()
-        result = run(c, 'cat /tmp/build.done 2>/dev/null && echo GO_DONE; cat /tmp/build.fail 2>/dev/null && echo GO_FAIL; cat /tmp/frontend.done 2>/dev/null && echo FE_DONE; cat /tmp/frontend.fail 2>/dev/null && echo FE_FAIL; ls /opt/xinipay/backend/xinipay-server-new 2>/dev/null && echo BINARY_OK', timeout=10)
+        result = run(c, 'ls /opt/xinipay/backend/.build_done 2>/dev/null && echo GO_DONE; ls /opt/xinipay/backend/.build_fail 2>/dev/null && echo GO_FAIL; ls /opt/xinipay/frontend/.build_done 2>/dev/null && echo FE_DONE; ls /opt/xinipay/frontend/.build_fail 2>/dev/null && echo FE_FAIL; ls /opt/xinipay/backend/xinipay-server-new 2>/dev/null && echo BINARY_OK', timeout=10)
         c.close()
         elapsed = (i+1)*10
         print(f"  [{elapsed//60}m{elapsed%60:02d}s]", end='', flush=True)
