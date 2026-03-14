@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -29,6 +31,21 @@ type proxyPool struct {
 var ProxyPool = &proxyPool{
 	proxies: make([]*Proxy, 0),
 	enabled: false,
+}
+
+func init() {
+	// 从环境变量 DEFAULT_PROXIES 自动加载代理，格式: addr1,addr2,...
+	if envProxies := os.Getenv("DEFAULT_PROXIES"); envProxies != "" {
+		for _, addr := range strings.Split(envProxies, ",") {
+			addr = strings.TrimSpace(addr)
+			if addr != "" {
+				ProxyPool.Add(addr, "http", "", "")
+				log.Printf("[PROXY] Auto-loaded default proxy: %s", addr)
+			}
+		}
+		ProxyPool.SetEnabled(true)
+		log.Printf("[PROXY] Proxy pool enabled with %d default proxies", len(ProxyPool.List()))
+	}
 }
 
 func (pp *proxyPool) SetEnabled(enabled bool) {

@@ -9,6 +9,7 @@ services:
       - "8090:8090"
     environment:
       - GIN_MODE=release
+      - DEFAULT_PROXIES=119.45.14.205:8899
     depends_on:
       postgres:
         condition: service_healthy
