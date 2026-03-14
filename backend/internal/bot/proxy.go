@@ -81,7 +81,14 @@ func (pp *proxyPool) Next() string {
 		tried++
 		if p.Healthy {
 			p.LastUsed = time.Now()
-			return p.Addr
+			scheme := p.Type
+			if scheme == "" {
+				scheme = "http"
+			}
+			if p.Username != "" {
+				return scheme + "://" + p.Username + ":" + p.Password + "@" + p.Addr
+			}
+			return scheme + "://" + p.Addr
 		}
 	}
 	return ""
