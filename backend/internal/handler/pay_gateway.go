@@ -489,8 +489,7 @@ func broadcastNewOrder(orderNo string, amount float64) {
 }
 
 // AlipayH5Form 移动端支付宝唤起页
-// 直接 302 重定向到 qr.alipay.com，由支付宝官方基础设施完成 App 唤起：
-// qr.alipay.com → mobilecodec.alipay.com → ds.alipay.com (Deep Link) → Alipay App
+// AlipayH5Form PC 端 302 到 qr.alipay.com 显示扫码页
 // GET /pay/h5/:order_no
 func AlipayH5Form(c *gin.Context) {
 	orderNo := c.Param("order_no")
@@ -505,19 +504,5 @@ func AlipayH5Form(c *gin.Context) {
 		return
 	}
 
-	qrURL := order.PayURL
-
-	// 检测是否为移动端 — 移动端直接 302 到 qr.alipay.com
-	// 支付宝会自动处理重定向链：qr.alipay.com → mobilecodec → ds.alipay.com → 唤起APP
-	ua := strings.ToLower(c.Request.UserAgent())
-	isMobile := strings.Contains(ua, "mobile") || strings.Contains(ua, "android") ||
-		strings.Contains(ua, "iphone") || strings.Contains(ua, "ipad")
-
-	if isMobile {
-		c.Redirect(http.StatusFound, qrURL)
-		return
-	}
-
-	// PC 端：也 302 到 qr.alipay.com（显示扫码页面）
-	c.Redirect(http.StatusFound, qrURL)
+	c.Redirect(http.StatusFound, order.PayURL)
 }

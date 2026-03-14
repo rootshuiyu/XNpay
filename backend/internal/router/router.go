@@ -1,14 +1,10 @@
 package router
 
 import (
-	"net/http"
 	"os"
-	"regexp"
-	"strings"
 
 	"xinipay/internal/handler"
 	"xinipay/internal/middleware"
-	"xinipay/internal/model"
 
 	_ "xinipay/internal/bot"
 	_ "xinipay/internal/channel"
@@ -17,28 +13,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var mobileRe = regexp.MustCompile(`(?i)(android|iphone|ipad|ipod|mobile|wap)`)
-
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
 	r.Use(middleware.CORS())
 
 	r.GET("/api/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
-	})
-
-	// 移动端访问收银台页面时，服务端直接 302 到 H5 唤起页
-	r.GET("/cashier/:orderNo", func(c *gin.Context) {
-		ua := c.Request.UserAgent()
-		if mobileRe.MatchString(ua) && !strings.Contains(strings.ToLower(ua), "micromessenger") {
-			orderNo := c.Param("orderNo")
-			var order model.PaymentOrder
-			if err := model.DB.Where("order_no = ?", orderNo).First(&order).Error; err == nil && order.PayURL != "" {
-				c.Redirect(http.StatusFound, "/pay/h5/"+orderNo)
-				return
-			}
-		}
-		c.File("./static/index.html")
 	})
 
 	if _, err := os.Stat("./static"); err == nil {

@@ -44,19 +44,8 @@ export default function CashierPage() {
   const [qrLoading, setQrLoading] = useState(true);
   const [activeMethod, setActiveMethod] = useState<'alipay' | 'wechat'>('alipay');
   const [showWxGuide, setShowWxGuide] = useState(false);
-  const [mobileRedirecting, setMobileRedirecting] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const redirectedRef = useRef(false);
-
-  const tryMobileRedirect = useCallback((data: OrderInfo) => {
-    if (redirectedRef.current) return;
-    const { isWeChat, isMobile } = detectEnv();
-    if (!isMobile || !data.pay_url) return;
-    if (isWeChat) { setShowWxGuide(true); return; }
-    redirectedRef.current = true;
-    setMobileRedirecting(true);
-    window.location.href = `/pay/h5/${data.order_no}`;
-  }, []);
 
   const fetchOrder = useCallback(async () => {
     try {
@@ -66,7 +55,6 @@ export default function CashierPage() {
         setOrder(data);
         if (data.status === 'paid') setPaid(true);
         if (data.qr_code) setQrLoading(false);
-        tryMobileRedirect(data);
       } else {
         setError(res.data.message || '订单不存在');
       }
@@ -75,7 +63,7 @@ export default function CashierPage() {
     } finally {
       setLoading(false);
     }
-  }, [orderNo, tryMobileRedirect]);
+  }, [orderNo]);
 
   useEffect(() => {
     const { isWeChat } = detectEnv();
@@ -97,12 +85,11 @@ export default function CashierPage() {
             if (pollRef.current) clearInterval(pollRef.current);
           }
           if (data.qr_code) setQrLoading(false);
-          tryMobileRedirect(data);
         }
       } catch { /* ignore */ }
     }, 3000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [paid, orderNo, tryMobileRedirect]);
+  }, [paid, orderNo]);
 
   useEffect(() => {
     if (paid && order?.return_url) {
@@ -185,19 +172,6 @@ export default function CashierPage() {
           </button>
         </div>
         <style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}`}</style>
-      </div>
-    );
-  }
-
-  if (mobileRedirecting) {
-    return (
-      <div style={S.page}>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        <div style={{ ...S.loadingBox }}>
-          <div style={S.spinner} />
-          <p style={{ color: '#1677ff', marginTop: 16, fontSize: 16, fontWeight: 600 }}>正在跳转支付宝...</p>
-          <p style={{ color: '#999', marginTop: 8, fontSize: 13 }}>请稍候，即将打开支付宝完成支付</p>
-        </div>
       </div>
     );
   }
@@ -319,55 +293,57 @@ export default function CashierPage() {
         {/* QR Code area */}
         {hasQRCode && (
           <div style={S.qrCard}>
-            {env.isMobile && order?.pay_url ? (
+            <div style={S.qrTitle}>
+              {env.isMobile ? '长按二维码识别付款' : '请扫描二维码'}
+            </div>
+            <div style={S.qrFrame}>
+              {qrLoading && (
+                <div style={S.qrOverlay}><div style={S.spinner} /></div>
+              )}
+              <img
+                src={order!.qr_code}
+                alt="支付二维码"
+                style={S.qrImg}
+                onLoad={() => setQrLoading(false)}
+                onError={() => setQrLoading(false)}
+              />
+              <div style={S.qrCorner} data-pos="tl" />
+              <div style={S.qrCorner} data-pos="tr" />
+              <div style={S.qrCorner} data-pos="bl" />
+              <div style={S.qrCorner} data-pos="br" />
+            </div>
+            {env.isMobile ? (
               <>
-                <div style={S.qrTitle}>点击下方按钮完成支付</div>
-                <button
-                  style={S.alipayOpenBtn}
-                  onClick={() => {
-                    window.location.href = `/pay/h5/${order.order_no}`;
-                  }}
-                >
-                  <svg viewBox="0 0 40 40" width="28" height="28" fill="none" style={{ marginRight: 10 }}>
-                    <path d="M20 3C10.6 3 3 10.6 3 20s7.6 17 17 17 17-7.6 17-17S29.4 3 20 3zm5.4 17.6c-1.4.6-4.1-.5-6.4-2-1.4 1.4-2.9 2.5-4.1 2.5-1.4 0-2.3-.9-2.3-2.1 0-1.4 1.2-2.3 2.7-2.3.7 0 1.6.2 2.5.6.5-.6.8-1.4 1.1-2.1h-5v-.9h2.7v-.9h-3.2V14h2v-1.4h1.8V14h2.7v.9H17v.9h2.9c-.3.9-.7 1.8-1.3 2.6 1.4.7 2.7 1.2 3.6 1.2.7 0 1.1-.3 1.1-.7s-.5-.8-1.4-1.3l.9-.6c1.1.6 1.8 1.3 1.8 2.3 0 .6-.3 1.2-.5 1.6z" fill="white"/>
-                  </svg>
-                  打开支付宝付款
-                </button>
-                <div style={S.waitingRow}>
-                  <span style={S.waitingDot} />
-                  正在等待支付...
+                <div style={S.mobileTip}>
+                  <span style={S.mobileTipIcon}>👆</span>
+                  <span>长按上方二维码 → 识别图中二维码 → 打开支付宝付款</span>
                 </div>
+                {order?.pay_url && (
+                  <button
+                    style={S.copyLinkBtn}
+                    onClick={() => {
+                      navigator.clipboard.writeText(order.pay_url).then(() => {
+                        setLinkCopied(true);
+                        setTimeout(() => setLinkCopied(false), 2000);
+                      });
+                    }}
+                  >
+                    {linkCopied ? '已复制 ✓' : '复制支付链接'}
+                  </button>
+                )}
+                <div style={S.copyLinkHint}>复制链接后可粘贴到支付宝内打开</div>
               </>
             ) : (
-              <>
-                <div style={S.qrTitle}>请扫描二维码</div>
-                <div style={S.qrFrame}>
-                  {qrLoading && (
-                    <div style={S.qrOverlay}><div style={S.spinner} /></div>
-                  )}
-                  <img
-                    src={order!.qr_code}
-                    alt="支付二维码"
-                    style={S.qrImg}
-                    onLoad={() => setQrLoading(false)}
-                    onError={() => setQrLoading(false)}
-                  />
-                  <div style={S.qrCorner} data-pos="tl" />
-                  <div style={S.qrCorner} data-pos="tr" />
-                  <div style={S.qrCorner} data-pos="bl" />
-                  <div style={S.qrCorner} data-pos="br" />
-                </div>
-                <div style={S.qrHint}>
-                  <span style={{ animation: 'blink 2s ease-in-out infinite', display:'inline-block' }}>📱</span>
-                  &nbsp;
-                  {activeMethod === 'alipay' ? '请使用支付宝扫码' : '请使用微信扫码'}
-                </div>
-                <div style={S.waitingRow}>
-                  <span style={S.waitingDot} />
-                  正在等待支付...
-                </div>
-              </>
+              <div style={S.qrHint}>
+                <span style={{ animation: 'blink 2s ease-in-out infinite', display:'inline-block' }}>📱</span>
+                &nbsp;
+                {activeMethod === 'alipay' ? '请使用支付宝扫码' : '请使用微信扫码'}
+              </div>
             )}
+            <div style={S.waitingRow}>
+              <span style={S.waitingDot} />
+              正在等待支付...
+            </div>
           </div>
         )}
 
@@ -824,23 +800,47 @@ const S: Record<string, React.CSSProperties> = {
     fontSize: 12,
     color: '#ccc',
   },
-  alipayOpenBtn: {
+  mobileTip: {
+    marginTop: 18,
+    background: 'linear-gradient(135deg, #fff7e6, #fff3e0)',
+    border: '1px solid #ffd591',
+    borderRadius: 10,
+    padding: '12px 16px',
+    fontSize: 14,
+    color: '#d48806',
+    fontWeight: 600,
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'flex-start',
+    gap: 8,
+    textAlign: 'left' as const,
+    lineHeight: 1.6,
+  },
+  mobileTipIcon: {
+    fontSize: 20,
+    flexShrink: 0,
+    marginTop: 1,
+  },
+  copyLinkBtn: {
+    display: 'block',
     width: '100%',
-    maxWidth: 320,
-    margin: '16px auto',
-    padding: '16px 24px',
-    background: 'linear-gradient(135deg, #1677ff, #0958d9)',
-    color: '#fff',
-    border: 'none',
-    borderRadius: 12,
-    fontSize: 18,
-    fontWeight: 700,
+    maxWidth: 280,
+    margin: '16px auto 0',
+    padding: '13px 24px',
+    background: '#fff',
+    color: '#1677ff',
+    border: '1.5px solid #1677ff',
+    borderRadius: 10,
+    fontSize: 15,
+    fontWeight: 600,
     cursor: 'pointer',
-    boxShadow: '0 4px 16px rgba(22,119,255,0.35)',
     letterSpacing: 0.5,
+    transition: 'all .2s',
+  },
+  copyLinkHint: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#bbb',
+    textAlign: 'center' as const,
   },
   wxOverlay: {
     position: 'fixed' as const,

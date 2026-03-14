@@ -62,11 +62,13 @@ print("=== 1. 拉取最新代码 ===")
 run(c, 'cd /opt/xinipay && git fetch origin main && git reset --hard origin/main', timeout=60)
 c.close()
 
-# ── 后台编译 ─────────────────────────────────────
+# ── 后台编译 Go + 前端 ─────────────────────────────
 c = connect()
-print("\n=== 2. 后台编译 Go 后端 ===")
-run(c, '''rm -f /tmp/build.done /tmp/build.fail
+print("\n=== 2. 后台编译 Go 后端 + 前端 ===")
+run(c, '''rm -f /tmp/build.done /tmp/build.fail /tmp/frontend.done /tmp/frontend.fail
 mkdir -p /root/gomod
+
+# Go 后端编译
 nohup docker run --rm \
   -v /opt/xinipay/backend:/app \
   -v /root/gomod:/go/pkg/mod \
@@ -76,7 +78,17 @@ nohup docker run --rm \
          && touch /tmp/build.done \
          || touch /tmp/build.fail" \
 > /tmp/gobuild.log 2>&1 &
-echo "后台编译已启动（约5-10分钟）"''', timeout=10)
+
+# 前端编译
+nohup docker run --rm \
+  -v /opt/xinipay/frontend:/app \
+  -w /app node:20-alpine \
+  sh -c "npm ci --silent && npm run build \
+         && touch /tmp/frontend.done \
+         || touch /tmp/frontend.fail" \
+> /tmp/frontend-build.log 2>&1 &
+
+echo "后台编译已启动（Go + Frontend）"''', timeout=10)
 c.close()
 
 if not WAIT:
@@ -87,29 +99,42 @@ if not WAIT:
 
 # ── 等待编译 ─────────────────────────────────────
 print("\n=== 3. 等待编译完成 ===")
+backend_done = False
+frontend_done = False
 for i in range(90):
     time.sleep(10)
     try:
         c = connect()
-        result = run(c, 'cat /tmp/build.done 2>/dev/null && echo DONE; cat /tmp/build.fail 2>/dev/null && echo FAIL; ls /opt/xinipay/backend/xinipay-server-new 2>/dev/null && echo BINARY_OK', timeout=10)
+        result = run(c, 'cat /tmp/build.done 2>/dev/null && echo GO_DONE; cat /tmp/build.fail 2>/dev/null && echo GO_FAIL; cat /tmp/frontend.done 2>/dev/null && echo FE_DONE; cat /tmp/frontend.fail 2>/dev/null && echo FE_FAIL; ls /opt/xinipay/backend/xinipay-server-new 2>/dev/null && echo BINARY_OK', timeout=10)
         c.close()
         elapsed = (i+1)*10
         print(f"  [{elapsed//60}m{elapsed%60:02d}s]", end='', flush=True)
-        if 'DONE' in result or 'BINARY_OK' in result:
-            print(" 编译完成！")
-            break
-        if 'FAIL' in result:
-            print(" 编译失败！")
+        if 'GO_DONE' in result or 'BINARY_OK' in result: backend_done = True
+        if 'FE_DONE' in result: frontend_done = True
+        if 'GO_FAIL' in result:
+            print(" Go 编译失败！")
             c = connect(); run(c, 'tail -20 /tmp/gobuild.log'); c.close()
             sys.exit(1)
-        print(" 编译中...")
+        if 'FE_FAIL' in result:
+            print(" 前端编译失败！")
+            c = connect(); run(c, 'tail -30 /tmp/frontend-build.log'); c.close()
+            sys.exit(1)
+        if backend_done and frontend_done:
+            print(" 全部编译完成！")
+            break
+        status = f" Go:{'OK' if backend_done else '...'} FE:{'OK' if frontend_done else '...'}"
+        print(status)
     except: print(" 重连中...")
 
 # ── 注入并重启 ─────────────────────────────────────
 c = connect()
-print("\n=== 4. 注入二进制并重启 ===")
+print("\n=== 4. 注入二进制 + 前端并重启 ===")
 run(c, 'ls -lh /opt/xinipay/backend/xinipay-server-new', timeout=10)
-run(c, 'docker stop xinipay; sleep 2; docker cp /opt/xinipay/backend/xinipay-server-new xinipay:/app/xinipay-server && docker start xinipay && echo "重启完成"', timeout=30)
+run(c, 'ls -ld /opt/xinipay/frontend/dist', timeout=10)
+run(c, '''docker stop xinipay; sleep 2
+docker cp /opt/xinipay/backend/xinipay-server-new xinipay:/app/xinipay-server
+docker cp /opt/xinipay/frontend/dist/. xinipay:/app/static/
+docker start xinipay && echo "重启完成"''', timeout=30)
 time.sleep(6)
 
 print("\n=== 5. 验证 ===")
