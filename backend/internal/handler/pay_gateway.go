@@ -490,7 +490,6 @@ func broadcastNewOrder(orderNo string, amount float64) {
 }
 
 // AlipayH5Form 移动端支付宝唤起页
-// 返回自定义 HTML 页面，通过多种方式尝试唤起支付宝 App
 // GET /pay/h5/:order_no
 func AlipayH5Form(c *gin.Context) {
 	orderNo := c.Param("order_no")
@@ -506,10 +505,10 @@ func AlipayH5Form(c *gin.Context) {
 	}
 
 	qrURL := order.PayURL
+	schemeQR := "alipays://platformapi/startapp?saId=10000007&qrcode=" + url.QueryEscape(qrURL)
 	schemeURL := "alipays://platformapi/startapp?appId=20000067&url=" + url.QueryEscape(qrURL)
-	schemeScan := "alipays://platformapi/startapp?saId=10000007&qrcode=" + url.QueryEscape(qrURL)
-	bridgeScheme := "alipays://platformapi/startapp?saId=10000007&qrcode=" + url.QueryEscape(qrURL)
-	bridgeURL := "https://render.alipay.com/p/s/i/?scheme=" + url.QueryEscape(bridgeScheme)
+	bridgeURL := "https://render.alipay.com/p/s/i/?scheme=" + url.QueryEscape(schemeQR)
+	intentURL := "intent://platformapi/startapp?saId=10000007&qrcode=" + url.QueryEscape(qrURL) + "#Intent;scheme=alipays;package=com.eg.android.AlipayGshi;end"
 
 	html := fmt.Sprintf(`<!DOCTYPE html>
 <html><head>
@@ -535,15 +534,13 @@ text-align:center;letter-spacing:0.5px;transition:opacity 0.2s}
 .btn-primary{background:linear-gradient(135deg,#1677ff,#0958d9);color:#fff;
 box-shadow:0 4px 16px rgba(22,119,255,0.35)}
 .btn-outline{background:#fff;color:#1677ff;border:1.5px solid #1677ff}
+.btn-green{background:#06b6d4;color:#fff;font-size:14px;padding:12px}
 .btn-link{background:none;border:none;color:#999;font-size:13px;padding:8px;font-weight:400}
-.spinner{display:inline-block;width:20px;height:20px;border:2.5px solid rgba(255,255,255,0.3);
-border-top-color:#fff;border-radius:50%%;animation:spin 0.8s linear infinite;
-vertical-align:middle;margin-right:8px}
-@keyframes spin{to{transform:rotate(360deg)}}
 .status{font-size:13px;color:#aaa;margin-top:16px}
 .dot{display:inline-block;width:6px;height:6px;border-radius:50%%;background:#52c41a;
 margin-right:6px;animation:pulse 1.5s ease-in-out infinite}
 @keyframes pulse{0%%,100%%{opacity:1}50%%{opacity:0.3}}
+#tip{font-size:12px;color:#bbb;margin-top:12px;display:none}
 </style>
 </head><body>
 <div class="card">
@@ -552,49 +549,92 @@ margin-right:6px;animation:pulse 1.5s ease-in-out infinite}
 <path d="M20 3C10.6 3 3 10.6 3 20s7.6 17 17 17 17-7.6 17-17S29.4 3 20 3zm5.4 17.6c-1.4.6-4.1-.5-6.4-2-1.4 1.4-2.9 2.5-4.1 2.5-1.4 0-2.3-.9-2.3-2.1 0-1.4 1.2-2.3 2.7-2.3.7 0 1.6.2 2.5.6.5-.6.8-1.4 1.1-2.1h-5v-.9h2.7v-.9h-3.2V14h2v-1.4h1.8V14h2.7v.9H17v.9h2.9c-.3.9-.7 1.8-1.3 2.6 1.4.7 2.7 1.2 3.6 1.2.7 0 1.1-.3 1.1-.7s-.5-.8-1.4-1.3l.9-.6c1.1.6 1.8 1.3 1.8 2.3 0 .6-.3 1.2-.5 1.6z" fill="white"/>
 </svg>
 </div>
-<h2>正在打开支付宝</h2>
-<p class="sub">如果没有自动打开，请点击下方按钮</p>
+<h2 id="title">正在打开支付宝...</h2>
+<p class="sub" id="subtitle">请稍候，正在跳转到支付宝</p>
 
-<a id="openBtn" class="btn btn-primary" href="%s">
+<a id="btnPrimary" class="btn btn-primary" href="%s">
 打开支付宝付款
 </a>
 
-<a class="btn btn-outline" href="%s">
-备用通道打开
+<a id="btnBridge" class="btn btn-outline" href="%s">
+备用方式打开
+</a>
+
+<a id="btnDirect" class="btn btn-green" href="%s">
+直接跳转支付
 </a>
 
 <a class="btn btn-link" href="%s">
-仍然无法打开？点此重试
+复制链接到支付宝打开
 </a>
 
 <div class="status"><span class="dot"></span>正在等待支付完成...</div>
+<div id="tip"></div>
 </div>
-
-<iframe id="schemeFrame" style="display:none" sandbox="allow-scripts allow-top-navigation"></iframe>
 
 <script>
 (function(){
-  var scheme1 = %q;
-  var scheme2 = %q;
+  var qrUrl = %q;
+  var schemeQR = %q;
+  var schemeURL = %q;
+  var intentUrl = %q;
+  var bridgeUrl = %q;
 
-  // 方法1: 通过 location.href 尝试唤起（appId=20000067 在支付宝内打开链接）
-  try { window.location.href = scheme1; } catch(e){}
+  var isAndroid = /android/i.test(navigator.userAgent);
+  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  var launched = false;
+  var t0 = Date.now();
 
-  // 方法2: 300ms 后尝试扫一扫方式
+  function tryScheme(url) {
+    var a = document.createElement('a');
+    a.href = url;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  function checkIfLeft() {
+    if (document.hidden || document.webkitHidden) { launched = true; }
+  }
+  document.addEventListener('visibilitychange', checkIfLeft);
+  document.addEventListener('webkitvisibilitychange', checkIfLeft);
+
+  if (isAndroid) {
+    // Android: intent:// 最可靠
+    try { window.location.href = intentUrl; } catch(e){}
+    setTimeout(function(){
+      if (!launched) { try { tryScheme(schemeQR); } catch(e){} }
+    }, 500);
+    setTimeout(function(){
+      if (!launched) { window.location.href = bridgeUrl; }
+    }, 2000);
+  } else if (isIOS) {
+    // iOS: 先用 scheme，再用 render.alipay.com
+    try { window.location.href = schemeQR; } catch(e){}
+    setTimeout(function(){
+      if (!launched) { try { window.location.href = schemeURL; } catch(e){} }
+    }, 400);
+    setTimeout(function(){
+      if (!launched) { window.location.href = bridgeUrl; }
+    }, 1500);
+  } else {
+    // PC: 直接跳转 qr.alipay.com（会显示二维码）
+    window.location.href = qrUrl;
+  }
+
+  // 3秒后显示提示
   setTimeout(function(){
-    try {
-      var f = document.getElementById('schemeFrame');
-      if(f) f.src = scheme2;
-    } catch(e){}
-  }, 300);
-
-  // 方法3: 800ms 后再次尝试 location
-  setTimeout(function(){
-    try { window.location.href = scheme1; } catch(e){}
-  }, 800);
+    if (!launched) {
+      document.getElementById('title').textContent = '请点击按钮打开支付宝';
+      document.getElementById('subtitle').textContent = '如果支付宝未自动打开，请手动点击下方按钮';
+      document.getElementById('tip').style.display = 'block';
+      document.getElementById('tip').textContent = '提示：请确保已安装支付宝APP';
+    }
+  }, 3000);
 })();
 </script>
-</body></html>`, schemeURL, bridgeURL, qrURL, schemeURL, schemeScan)
+</body></html>`, schemeQR, bridgeURL, qrURL, qrURL, qrURL, schemeQR, schemeURL, intentURL, bridgeURL)
 
 	c.Header("Content-Type", "text/html; charset=utf-8")
 	c.Header("Cache-Control", "no-cache, no-store")
