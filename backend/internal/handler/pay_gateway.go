@@ -490,6 +490,8 @@ func broadcastNewOrder(orderNo string, amount float64) {
 }
 
 // AlipayH5Form 移动端支付宝唤起页
+// mode=direct 时直接 302 到 qr.alipay.com（让支付宝自己处理唤起）
+// 默认返回多方式唤起 HTML 页面
 // GET /pay/h5/:order_no
 func AlipayH5Form(c *gin.Context) {
 	orderNo := c.Param("order_no")
@@ -505,6 +507,13 @@ func AlipayH5Form(c *gin.Context) {
 	}
 
 	qrURL := order.PayURL
+
+	// mode=direct: 直接 302 到支付宝链接
+	if c.Query("mode") == "direct" {
+		c.Redirect(http.StatusFound, qrURL)
+		return
+	}
+
 	schemeQR := "alipays://platformapi/startapp?saId=10000007&qrcode=" + url.QueryEscape(qrURL)
 	schemeURL := "alipays://platformapi/startapp?appId=20000067&url=" + url.QueryEscape(qrURL)
 	bridgeURL := "https://render.alipay.com/p/s/i/?scheme=" + url.QueryEscape(schemeQR)
