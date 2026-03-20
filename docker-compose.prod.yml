@@ -2,21 +2,19 @@ version: '3.8'
 
 services:
   xinipay:
-    image: ghcr.io/rootshuiyu/xnpay:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: xinipay:latest
     container_name: xinipay
     restart: unless-stopped
     ports:
       - "8090:8090"
     environment:
       - GIN_MODE=release
-      - DEFAULT_PROXIES=119.45.14.205:8899
     depends_on:
       postgres:
         condition: service_healthy
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
-      - 1.1.1.1
     networks:
       - xinipay-net
 
