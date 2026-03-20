@@ -1,23 +1,10 @@
-import { useState } from 'react';
-import { Card, Form, Input, Button, message, Descriptions } from 'antd';
+import { Card, Descriptions } from 'antd';
 import { changeMerchantPassword } from '../../api/merchant';
 import useMerchantStore from '../../store/useMerchantStore';
+import ChangePasswordCard from '../../components/ChangePasswordCard';
 
 export default function MerchantSettings() {
-  const [loading, setLoading] = useState(false);
   const { merchant } = useMerchantStore();
-  const [form] = Form.useForm();
-
-  const handleChangePassword = async (values: any) => {
-    setLoading(true);
-    try {
-      await changeMerchantPassword(values);
-      message.success('密码修改成功');
-      form.resetFields();
-    } catch {} finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div style={{ maxWidth: 600 }}>
@@ -35,19 +22,7 @@ export default function MerchantSettings() {
         </Descriptions>
       </Card>
 
-      <Card title="修改密码">
-        <Form form={form} onFinish={handleChangePassword} layout="vertical">
-          <Form.Item name="old_password" label="原密码" rules={[{ required: true }]}>
-            <Input.Password />
-          </Form.Item>
-          <Form.Item name="new_password" label="新密码" rules={[{ required: true }, { min: 6, message: '至少6个字符' }]}>
-            <Input.Password />
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" htmlType="submit" loading={loading}>修改密码</Button>
-          </Form.Item>
-        </Form>
-      </Card>
+      <ChangePasswordCard onSubmit={changeMerchantPassword} />
     </div>
   );
 }

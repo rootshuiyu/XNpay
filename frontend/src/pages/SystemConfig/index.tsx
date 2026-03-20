@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Card, Form, Input, Button, message, Divider, InputNumber, Switch, Row, Col } from 'antd';
 import { SaveOutlined } from '@ant-design/icons';
 import { getConfigs, updateConfigs } from '../../api/config';
+import { changePassword } from '../../api/auth';
+import ChangePasswordCard from '../../components/ChangePasswordCard';
 
 export default function SystemConfig() {
   const [form] = Form.useForm();
@@ -37,8 +39,9 @@ export default function SystemConfig() {
   };
 
   return (
-    <Card title="后台配置管理" loading={loading}>
-      <Form form={form} layout="vertical" onFinish={onFinish} style={{ maxWidth: 600 }}>
+    <div style={{ maxWidth: 600 }}>
+      <Card title="后台配置管理" loading={loading}>
+        <Form form={form} layout="vertical" onFinish={onFinish}>
         <Divider>基础配置</Divider>
         <Form.Item name="site_name" label="站点名称">
           <Input placeholder="如: 犀牛支付" />
@@ -107,12 +110,22 @@ export default function SystemConfig() {
           </Col>
         </Row>
 
-        <Form.Item>
-          <Button type="primary" htmlType="submit" loading={saving} icon={<SaveOutlined />}>
-            保存配置
-          </Button>
-        </Form.Item>
-      </Form>
-    </Card>
+          <Form.Item>
+            <Button type="primary" htmlType="submit" loading={saving} icon={<SaveOutlined />}>
+              保存配置
+            </Button>
+          </Form.Item>
+        </Form>
+      </Card>
+
+      <div style={{ marginTop: 24 }}>
+        <ChangePasswordCard
+          title="修改登录密码"
+          submitText="修改登录密码"
+          successMessage="登录密码修改成功"
+          onSubmit={changePassword}
+        />
+      </div>
+    </div>
   );
 }
