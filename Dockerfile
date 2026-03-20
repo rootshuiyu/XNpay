@@ -3,12 +3,17 @@ FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
-RUN npm ci --silent
+RUN npm config set registry https://registry.npmmirror.com \
+  && npm ci --silent
 COPY frontend/ ./
 RUN npm run build
 
 # ===== Stage 2: Build Go binary =====
 FROM golang:latest AS backend-builder
+
+ENV GOPROXY=https://goproxy.cn,direct
+# 避免在网络受限时访问 sum.golang.org 导致构建失败
+ENV GOSUMDB=off
 
 RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 
